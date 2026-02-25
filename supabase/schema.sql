@@ -110,12 +110,16 @@ CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 -- ============================================================
 -- TABLE: users
 -- Purpose: Staff and admin users for POS and Admin Dashboard
+-- Roles:
+-- - owner: Super Admin (manage everything)
+-- - outlet_admin: Admin for specific outlet (manage outlet, products, POS users)
+-- - cashier: POS user for specific outlet
 -- ============================================================
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'admin', 'cashier')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'outlet_admin', 'cashier')),
     outlet_id UUID REFERENCES outlets(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -258,7 +262,20 @@ CREATE POLICY "Customers can read own data"
     ON customers FOR SELECT
     USING (
         auth.uid()::TEXT = id::TEXT 
-        OR auth.role() IN ('owner', 'admin', 'cashier', 'service_role')
+        OR auth.role() IN ('owner', 'outlet_admin', 'cashier', 'service_role')
+    );
+
+-- Owner can see all customers
+CREATE POLICY "Owner can manage customers"
+    ON customers FOR ALL
+    USING (auth.role() = 'owner');
+
+-- Outlet admin can see customers (for their outlet's orders)
+CREATE POLICY "Outlet admin can view customers"
+    ON customers FOR SELECT
+    USING (
+        auth.role() = 'outlet_admin' 
+        OR auth.role() = 'service_role'
     );
 
 -- Service role can insert customers (WhatsApp bot)
@@ -275,12 +292,22 @@ CREATE POLICY "Service role can update customers"
 -- RLS POLICIES: products
 -- ============================================================
 
--- Authenticated users can read active products
+-- Anyone can read active products (for weborder)
 CREATE POLICY "Anyone can read active products"
     ON products FOR SELECT
+    USING (active = true);
+
+-- Owner can manage all products
+CREATE POLICY "Owner can manage all products"
+    ON products FOR ALL
+    USING (auth.role() = 'owner');
+
+-- Outlet admin can manage products for their outlet
+CREATE POLICY "Outlet admin can manage outlet products"
+    ON products FOR ALL
     USING (
-        active = true 
-        OR auth.role() IN ('owner', 'admin', 'cashier', 'service_role')
+        auth.role() = 'outlet_admin'
+        AND outlet_id = (SELECT outlet_id FROM users WHERE id::TEXT = auth.uid()::TEXT)
     );
 
 -- Service role can manage products
@@ -295,19 +322,14 @@ CREATE POLICY "Service role can manage products"
 -- Owner can view all orders
 CREATE POLICY "Owner can view all orders"
     ON orders FOR SELECT
-    USING (
-        auth.role() = 'owner' 
-        OR auth.role() = 'service_role'
-    );
+    USING (auth.role() = 'owner');
 
--- Admin can view orders for their outlet
-CREATE POLICY "Admin can view outlet orders"
+-- Outlet admin can view orders for their outlet
+CREATE POLICY "Outlet admin can view outlet orders"
     ON orders FOR SELECT
     USING (
-        auth.role() = 'admin' 
-        AND outlet_id = (
-            SELECT outlet_id FROM users WHERE id::TEXT = auth.uid()::TEXT
-        )
+        auth.role() = 'outlet_admin' 
+        AND outlet_id = (SELECT outlet_id FROM users WHERE id::TEXT = auth.uid()::TEXT)
     );
 
 -- Cashier can view orders for their outlet
@@ -315,9 +337,7 @@ CREATE POLICY "Cashier can view outlet orders"
     ON orders FOR SELECT
     USING (
         auth.role() = 'cashier' 
-        AND outlet_id = (
-            SELECT outlet_id FROM users WHERE id::TEXT = auth.uid()::TEXT
-        )
+        AND outlet_id = (SELECT outlet_id FROM users WHERE id::TEXT = auth.uid()::TEXT)
     );
 
 -- Service role can insert orders (Web Order)
@@ -327,11 +347,11 @@ CREATE POLICY "Authenticated can insert orders"
         auth.role() IN ('authenticated', 'service_role')
     );
 
--- Cashier/Admin can update order status
+-- Owner and Outlet admin can update order status
 CREATE POLICY "Staff can update order status"
     ON orders FOR UPDATE
     USING (
-        auth.role() IN ('owner', 'admin', 'cashier', 'service_role')
+        auth.role() IN ('owner', 'outlet_admin', 'cashier', 'service_role')
     );
 
 -- ============================================================
@@ -359,7 +379,7 @@ CREATE POLICY "Users can read own profile"
     ON users FOR SELECT
     USING (
         id::TEXT = auth.uid()::TEXT 
-        OR auth.role() IN ('owner', 'service_role')
+        OR auth.role() = 'owner'
     );
 
 -- Owner can manage all users
