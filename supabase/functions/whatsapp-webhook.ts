@@ -56,10 +56,15 @@ async function getCustomerByPhone(supabase: any, phone: string): Promise<any> {
   return data;
 }
 
-async function createCustomer(supabase: any, name: string, phone: string): Promise<any> {
+async function createCustomer(supabase: any, name: string, phone: string, referredBy?: string): Promise<any> {
+  const insertData: any = { name: name, phone: phone };
+  if (referredBy) {
+    insertData.referred_by = referredBy;
+  }
+  
   const { data: newCustomer, error } = await supabase
     .from("customers")
-    .insert({ name: name, phone: phone })
+    .insert(insertData)
     .select()
     .single();
 
@@ -68,6 +73,21 @@ async function createCustomer(supabase: any, name: string, phone: string): Promi
     return null;
   }
   return newCustomer;
+}
+
+async function updateCustomerName(supabase: any, phone: string, newName: string): Promise<any> {
+  const { data: updatedCustomer, error } = await supabase
+    .from("customers")
+    .update({ name: newName })
+    .eq("phone", phone)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating customer name:", error);
+    return null;
+  }
+  return updatedCustomer;
 }
 
 async function getProducts(supabase: any): Promise<any[]> {
@@ -84,9 +104,9 @@ async function getProducts(supabase: any): Promise<any[]> {
 // GEMINI AI MARKETING
 // ============================================================
 
-async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, products: any[]): Promise<string> {
+async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[]): Promise<string> {
   if (!GEMINI_API_KEY) {
-    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products);
   }
 
   const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
@@ -109,16 +129,17 @@ ATURAN:
 5. Respons dalam Bahasa Indonesia yang natural
 6. Jangan terlalu panjang, cukup informatif
 7. Selalu ingatkan link order jika ada kesempatan
+8. Jika customer tanya tentang referral atau komisi, jelaskan dengan jelas
 
 CONTOH:
 - Customer: "halo"
   Feisty: "Halo [nama]! 👋 Selamat datang di Feisty! Ada yang bisa saya bantu? Mau lihat menu atau langsung pesan?"
 
-- Customer: "menu apa saja?"
-  Feisty: "Ini beberapa menu favorit kami:\n\n🍔 Feisty Burger - Rp 25.000\n🍟 Fries Medium - Rp 15.000\n🥤 Cola Reg - Rp 8.000\n\nMau pesan yang mana? Klik saja: ${WEB_ORDER_URL}"
+- Customer: "referral apa?"
+  Feisty: "Program referral Feisty! Share kode Anda ke teman dan dapat komisi! Kode Anda: [kode]. Setiap teman yang pesan lewat link Anda, Anda dapat [nominal] komisi! 🎁"
 
-- Customer: " cara pesan?"
-  Feisty: "Gampang banget! Klik link ini: ${WEB_ORDER_URL} terus pilih menu yang wanted, lalu checkout. Ada yang bingung?"`;
+- Customer: "cara dapat komisi?"
+  Feisty: "Gampang! 1) Share kode referral Anda ke teman 2) Teman pesan lewat link Anda 3) Anda dapat komisi saat pesanan selesai! Kode Anda: [kode]";
 
   const userPrompt = `Customer: ${customerName}
 Pesan: ${messageText}`;
@@ -144,28 +165,38 @@ Pesan: ${messageText}`;
       return content;
     }
     
-    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products);
   } catch (error) {
     console.error("Gemini error:", error);
-    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products);
   }
 }
 
-function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, products: any[]): string {
+function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[]): string {
   const msg = messageText.toLowerCase();
   const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
   const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
 
+  // Handle name change
+  if (msg.includes("ganti nama") || msg.includes("ubah nama") || msg.includes("rubah nama")) {
+    const newName = messageText.replace(/ganti nama|ubah nama|rubah nama/i, "").trim();
+    return `Untuk mengganti nama, tuliskan nama baru Anda dengan format:\n\nganti nama [nama baru]\n\nContoh: ganti nama Budi`;
+  }
+  
   if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello")) {
-    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!\n\n📢 Share kode referral Anda: *${customerReferralCode}*\nDapat komisi kalau teman pesan lewat link Anda!`;
+    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\n📢 *Kode Referral Anda:* ${customerReferralCode}\n🎁 Total komisi: ${totalReferrals} teman\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
   }
   
   if (msg.includes("menu")) {
     return `📋 *Menu Feisty*\n\n${productList}\n\nKlik untuk pesan: ${orderLink}`;
   }
   
-  if (msg.includes("referral") || msg.includes("komisi") || msg.includes("share")) {
-    return `📢 *Kode Referral Anda*\n\n*Kode:* ${customerReferralCode}\n\nShare kode ini ke teman! Kalau mereka pesan lewat link Anda, Anda dapat komisi!\n\nLink share: ${orderLink}`;
+  if (msg.includes("referral") || msg.includes("komisi") || msg.includes("share") || msg.includes("uang")) {
+    return `📢 *Program Referral Feisty* 🎁\n\n*Kode Anda:* ${customerReferralCode}\n\n*Cara Dapat Komis:*\n1. Share kode referral Anda ke teman\n2. Teman pesan lewat link Anda: ${orderLink}\n3. Dapat komisi saat pesanan selesai!\n\n*Status:* ${totalReferrals} teman sudah pesan lewat referral Anda!\n\nMau pesan sekarang? Klik: ${orderLink}`;
+  }
+  
+  if (msg.includes("kode") || msg.includes("apa kode")) {
+    return `📢 *Kode Referral Anda:* ${customerReferralCode}\n\nShare kode ini ke teman! Setiap teman yang pesan lewat link Anda dapat komisi untuk Anda! 🎁\n\nLink share: ${orderLink}`;
   }
   
   if (msg.includes("pesan") || msg.includes("order") || msg.includes("beli")) {
@@ -179,12 +210,6 @@ function getFallbackResponse(messageText: string, customerName: string, customer
 // NAME CAPTURE (for new customers)
 // ============================================================
 
-function isNameCaptureMode(lastMessage: string): boolean {
-  // Check if previous bot message was asking for name
-  const msg = lastMessage.toLowerCase();
-  return msg.includes("nama") || msg.includes("siapa") || msg.includes("call");
-}
-
 async function handleNameCapture(supabase: any, phone: string, nameInput: string): Promise<string> {
   if (!nameInput || nameInput.trim().length < 2) {
     return "Nama minimal 2 karakter. Boleh beritahu nama Anda?";
@@ -197,9 +222,51 @@ async function handleNameCapture(supabase: any, phone: string, nameInput: string
   }
 
   const products = await getProducts(supabase);
-  const orderLink = getOrderLink(phone, customer.name);
+  const orderLink = getOrderLink(phone, customer.name, customer.referral_code);
   
-  return `Senang berkenalan dengan Anda, ${customer.name}! 🎉\n\nSaya Feisty, asisten pesan Anda!\n\n📋 *Rekomendasi hari ini:*\n${products.slice(0, 3).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n")}\n\nMau pesan sekarang? Klik: ${orderLink}`;
+  return `Senang berkenalan dengan Anda, ${customer.name}! 🎉
+
+Saya Feisty, asisten pesan Anda di Feisty Malili!
+
+📋 *Keuntungan jadi member Feisty:*
+• Pesan lebih cepat via link personal
+• Dapatkan kode referral untuk teman
+• Bonus komisi kalau teman pesan lewat link Anda
+
+🎁 *Kode Referral Anda:* ${customer.referral_code}
+
+📢 *Cara Dapat Komis:*
+1. Share kode referral atau link Anda ke teman
+2. Teman pesan lewat link Anda
+3. Dapat komisi saat pesanan selesai!
+
+🍔 *Rekomendasi hari ini:*
+${products.slice(0, 3).map(p => `• ${p.name}: Rp ${p.price.toLocaleString("id-ID")}`).join("\n")}
+
+Mau pesan sekarang? Klik: ${orderLink}`;
+}
+
+// Handle name change request
+async function handleNameChange(supabase: any, phone: string, newName: string): Promise<string> {
+  if (!newName || newName.trim().length < 2) {
+    return "Nama minimal 2 karakter. Boleh coba lagi dengan format: 'ganti nama [nama baru]'";
+  }
+
+  const customer = await updateCustomerName(supabase, phone, newName.trim());
+  
+  if (!customer) {
+    return "Maaf ada kesalahan saat mengubah nama. Boleh coba lagi?";
+  }
+
+  const orderLink = getOrderLink(phone, customer.name, customer.referral_code);
+  
+  return `✅ Nama berhasil diganti menjadi *${customer.name}*!
+
+📢 *Kode Referral Anda:* ${customer.referral_code}
+
+Anda bisa share kode ini ke teman untuk dapat komisi! 😄
+
+Mau pesan sekarang? Klik: ${orderLink}`;
 }
 
 // ============================================================
@@ -269,25 +336,51 @@ serve(async (req) => {
 
     if (!customer) {
       // NEW CUSTOMER - Check if this is a name response
-      // For now, treat first message as potential name input or greeting
       const msg = messageText.toLowerCase().trim();
+      
+      // Check for name change command pattern
+      const isNameChange = msg.match(/^(ganti|ubah|rubah)\s+nama\s+(.+)/);
+      if (isNameChange) {
+        return new Response(JSON.stringify({ received: true }), { headers: corsHeaders });
+      }
       
       // If message looks like a name (short, no keywords), try to register
       const isNameInput = msg.length > 1 && msg.length < 30 && 
         !msg.includes("menu") && !msg.includes("pesan") && !msg.includes("halo") &&
-        !msg.includes("hello") && !msg.includes("hi");
+        !msg.includes("hello") && !msg.includes("hi") && !msg.includes("ganti") &&
+        !msg.includes("ubah") && !msg.includes("rubah");
       
       if (isNameInput) {
         // Treat as name
         responseMessage = await handleNameCapture(supabase, from, messageText);
       } else {
         // Ask for name
-        responseMessage = `Halo! 👋\n\nSelamat datang di Feisty!\n\nBoleh tahu nama Anda? Supaya kami bisa melayani Anda dengan baik! 😊`;
+        responseMessage = `Halo! 👋
+
+Selamat datang di Feisty!
+
+Boleh tahu nama Anda? Supaya kami bisa melayani Anda dengan baik! 😊`;
       }
     } else {
-      // EXISTING CUSTOMER - Use AI for marketing
-      const products = await getProducts(supabase);
-      responseMessage = await getAIResponse(messageText, customer.name, from, customer.referral_code, products);
+      // EXISTING CUSTOMER - Check for name change command
+      const msg = messageText.toLowerCase().trim();
+      const nameChangeMatch = messageText.match(/^(ganti|ubah|rubah)\s+nama\s+(.+)/i);
+      
+      if (nameChangeMatch && nameChangeMatch[2]) {
+        // Handle name change
+        responseMessage = await handleNameChange(supabase, from, nameChangeMatch[2]);
+      } else {
+        // Use AI for marketing
+        const products = await getProducts(supabase);
+        responseMessage = await getAIResponse(
+          messageText, 
+          customer.name, 
+          from, 
+          customer.referral_code || "BELUM ADA",
+          customer.total_referrals || 0,
+          products
+        );
+      }
     }
 
     // Send response
