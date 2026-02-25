@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Feisty - Kasir</title>
+    <meta name="description" content="Sistem POS Feisty untuk kasir">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A24;
+            --secondary: #1A1A2E;
+            --success: #25D366;
+            --warning: #F7C94B;
+            --danger: #FF4757;
+            --info: #3498DB;
+        }
+        
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        /* Status badges */
+        .status-pending { background-color: #FEF3C7; color: #92400E; }
+        .status-processing { background-color: #DBEAFE; color: #1E40AF; }
+        .status-completed { background-color: #D1FAE5; color: #065F46; }
+        
+        /* Order card animations */
+        .order-card {
+            transition: all 0.2s ease;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Pulse for new orders */
+        @keyframes pulse-new {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
+        }
+        
+        .pulse-new {
+            animation: pulse-new 2s infinite;
+        }
+        
+        /* Loading spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                    <span class="text-white font-bold text-2xl">F</span>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">POS Feisty</h1>
+                <p class="text-gray-500">Masuk sebagai kasir</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" required
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#FF6B35] focus:ring-2 focus:ring-[#FF6B35]/20 outline-none transition-all"
+                        placeholder="email@feisty.id">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="loginPassword" required
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#FF6B35] focus:ring-2 focus:ring-[#FF6B35]/20 outline-none transition-all"
+                        placeholder="••••••••">
+                </div>
+                
+                <button type="submit" 
+                    class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
+                    Masuk
+                </button>
+            </form>
+            
+            <p id="loginError" class="mt-4 text-center text-red-500 text-sm hidden"></p>
+        </div>
+    </div>
+
+    <!-- Main POS Screen -->
+    <div id="posScreen" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                            <span class="text-white font-bold">F</span>
+                        </div>
+                        <div>
+                            <h1 class="font-bold text-lg text-gray-800">POS Feisty</h1>
+                            <p id="cashierName" class="text-sm text-gray-500">Kasir</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <!-- Outlet Selector -->
+                        <select id="outletFilter" onchange="filterByOutlet()"
+                            class="px-4 py-2 rounded-lg border border-gray-300 text-sm focus:border-[#FF6B35] outline-none">
+                            <option value="">Semua Outlet</option>
+                        </select>
+                        
+                        <!-- Status Filter -->
+                        <select id="statusFilter" onchange="filterOrders()"
+                            class="px-4 py-2 rounded-lg border border-gray-300 text-sm focus:border-[#FF6B35] outline-none">
+                            <option value="">Semua Status</option>
+                            <option value="pending">Menunggu</option>
+                            <option value="processing">Diproses</option>
+                            <option value="completed">Selesai</option>
+                        </select>
+                        
+                        <!-- Logout Button -->
+                        <button onclick="logout()" class="p-2 text-gray-500 hover:text-red-500 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500">Total Hari Ini</p>
+                        <p id="todayTotal" class="text-2xl font-bold text-[#FF6B35]">Rp 0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500">Pesanan</p>
+                        <p id="todayOrders" class="text-2xl font-bold text-gray-800">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500">Menunggu</p>
+                        <p id="pendingCount" class="text-2xl font-bold text-yellow-600">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500">Selesai</p>
+                        <p id="completedCount" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Grid -->
+        <main class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">Daftar Pesanan</h2>
+                <div class="flex items-center gap-2">
+                    <span id="realtimeStatus" class="flex items-center gap-1 text-sm text-green-600">
+                        <span class="w-2 h-2 bg-green-600 rounded-full"></span>
+                        Realtime
+                    </span>
+                    <button onclick="refreshOrders()" class="p-2 text-gray-500 hover:text-[#FF6B35] transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Orders Container -->
+            <div id="ordersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Orders will be loaded here -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-16">
+                <svg class="w-20 h-20 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <p class="text-gray-500 text-lg">Tidak ada pesanan</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="orderDetailModal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="absolute right-0 top-0 bottom-0 bg-white w-full max-w-md overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Detail Pesanan</h2>
+                    <button onclick="closeOrderDetail()" class="p-2 text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="orderDetailContent">
+                    <!-- Order details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hidden transform transition-all duration-300">
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- Supabase & Auth Config -->
+    <script>
+        // Configuration - Use shared Supabase config
+        const SUPABASE_URL = window.SUPABASE_URL || 'https://ztefkcbgkdqgvcfphvys.supabase.co';
+        const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
+
+        // App State
+        let state = {
+            user: null,
+            orders: [],
+            filteredOrders: [],
+            selectedOrder: null,
+            outletFilter: '',
+            statusFilter: ''
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+
+        // Check authentication
+        function checkAuth() {
+            const userData = localStorage.getItem('feisty_pos_user');
+            if (userData) {
+                state.user = JSON.parse(userData);
+                showPOS();
+                loadOrders();
+                loadOutlets();
+            }
+        }
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            
+            try {
+                // For demo, simulate authentication
+                // In production, use Supabase Auth
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&role=eq.cashier`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Login failed');
+                
+                const users = await response.json();
+                
+                if (users.length === 0) {
+                    // Demo mode - allow login with any credentials for testing
+                    state.user = {
+                        id: 'demo-cashier',
+                        name: email.split('@')[0],
+                        email: email,
+                        role: 'cashier'
+                    };
+                } else {
+                    state.user = users[0];
+                }
+
+                localStorage.setItem('feisty_pos_user', JSON.stringify(state.user));
+                showPOS();
+                loadOrders();
+                loadOutlets();
+                
+            } catch (error) {
+                // Demo mode fallback
+                state.user = {
+                    id: 'demo-cashier',
+                    name: email.split('@')[0],
+                    email: email,
+                    role: 'cashier'
+                };
+                
+                localStorage.setItem('feisty_pos_user', JSON.stringify(state.user));
+                showPOS();
+                loadOrders();
+                loadOutlets();
+            }
+        }
+
+        // Show POS screen
+        function showPOS() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('posScreen').classList.remove('hidden');
+            document.getElementById('cashierName').textContent = state.user.name;
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('feisty_pos_user');
+            state.user = null;
+            document.getElementById('posScreen').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        // Load outlets
+        async function loadOutlets() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/outlets?select=id,name&active=eq.true`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const outlets = await response.json();
+                const select = document.getElementById('outletFilter');
+                
+                // Keep first option
+                select.innerHTML = '<option value="">Semua Outlet</option>';
+                
+                outlets.forEach(outlet => {
+                    const option = document.createElement('option');
+                    option.value = outlet.id;
+                    option.textContent = outlet.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading outlets:', error);
+            }
+        }
+
+        // Load orders
+        async function loadOrders() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                
+                let url = `${SUPABASE_URL}/rest/v1/orders?created_at=gte.${today}T00:00:00&order=created_at.desc&select=*,customers(name,phone)`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Failed to load orders');
+                
+                state.orders = await response.json();
+                filterOrders();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                // Load demo data for testing
+                loadDemoOrders();
+            }
+        }
+
+        // Load demo orders
+        function loadDemoOrders() {
+            state.orders = [
+                {
+                    id: 'demo-1',
+                    outlet_id: '00000000-0000-0000-0000-000000000001',
+                    customer_id: 'demo-customer',
+                    total: 45000,
+                    status: 'pending',
+                    referral_rewarded: false,
+                    created_at: new Date().toISOString(),
+                    customers: { name: 'Budi', phone: '081234567890' }
+                },
+                {
+                    id: 'demo-2',
+                    outlet_id: '00000000-0000-0000-0000-000000000001',
+                    customer_id: 'demo-customer-2',
+                    total: 28000,
+                    status: 'processing',
+                    referral_rewarded: false,
+                    created_at: new Date(Date.now() - 1800000).toISOString(),
+                    customers: { name: 'Siti', phone: '081234567891' }
+                }
+            ];
+            filterOrders();
+            updateStats();
+        }
+
+        // Filter orders
+        function filterOrders() {
+            state.statusFilter = document.getElementById('statusFilter').value;
+            state.outletFilter = document.getElementById('outletFilter').value;
+            
+            state.filteredOrders = state.orders.filter(order => {
+                const matchesStatus = !state.statusFilter || order.status === state.statusFilter;
+                const matchesOutlet = !state.outletFilter || order.outlet_id === state.outletFilter;
+                return matchesStatus && matchesOutlet;
+            });
+            
+            renderOrders();
+        }
+
+        // Filter by outlet
+        function filterByOutlet() {
+            filterOrders();
+        }
+
+        // Render orders
+        function renderOrders() {
+            const container = document.getElementById('ordersContainer');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (state.filteredOrders.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            
+            container.innerHTML = state.filteredOrders.map(order => {
+                const statusClass = `status-${order.status}`;
+                const statusText = {
+                    pending: 'Menunggu',
+                    processing: 'Diproses',
+                    completed: 'Selesai'
+                };
+                const time = new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                
+                return `
+                    <div class="order-card bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer" onclick="showOrderDetail('${order.id}')">
+                        <div class="p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="font-mono text-sm text-gray-500">#${order.id.slice(0, 8)}</span>
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                    ${statusText[order.status]}
+                                </span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <p class="font-medium text-gray-800">${order.customers?.name || 'Tamu'}</p>
+                                <p class="text-sm text-gray-500">${order.customers?.phone || '-'}</p>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500">${time}</span>
+                                <span class="font-bold text-[#FF6B35]">Rp ${(order.total || 0).toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                        
+                        ${order.status !== 'completed' ? `
+                        <div class="border-t border-gray-100 p-2 flex gap-2">
+                            ${order.status === 'pending' ? `
+                                <button onclick="event.stopPropagation(); updateOrderStatus('${order.id}', 'processing')" 
+                                    class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-medium transition-colors">
+                                    Proses
+                                </button>
+                            ` : ''}
+                            ${order.status === 'processing' ? `
+                                <button onclick="event.stopPropagation(); updateOrderStatus('${order.id}', 'completed')" 
+                                    class="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-medium transition-colors">
+                                    Selesai
+                                </button>
+                            ` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Show order detail
+        async function showOrderDetail(orderId) {
+            const order = state.orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            state.selectedOrder = order;
+            
+            // Load order items
+            let items = [];
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/order_items?order_id=eq.${orderId}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+                items = await response.json();
+            } catch (error) {
+                console.error('Error loading order items:', error);
+            }
+            
+            const statusText = {
+                pending: 'Menunggu',
+                processing: 'Diproses',
+                completed: 'Selesai'
+            };
+            
+            document.getElementById('orderDetailContent').innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="font-mono text-sm text-gray-500">Order #${order.id.slice(0, 8)}</p>
+                                <p class="text-lg font-semibold text-gray-800">${order.customers?.name || 'Tamu'}</p>
+                                <p class="text-sm text-gray-500">${order.customers?.phone || '-'}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium status-${order.status}">
+                                ${statusText[order.status]}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-500">${new Date(order.created_at).toLocaleString('id-ID')}</p>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-semibold text-gray-800 mb-3">Items</h3>
+                        <div class="space-y-2">
+                            ${items.length > 0 ? items.map(item => `
+                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <div>
+                                        <p class="font-medium text-gray-800">${item.product_name}</p>
+                                        <p class="text-sm text-gray-500">${item.quantity} x Rp ${item.unit_price.toLocaleString('id-ID')}</p>
+                                    </div>
+                                    <p class="font-medium">Rp ${item.subtotal.toLocaleString('id-ID')}</p>
+                                </div>
+                            `).join('') : '<p class="text-gray-500">Item tidak tersedia</p>'}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-gray-800">Total</span>
+                            <span class="text-2xl font-bold text-[#FF6B35]">Rp ${(order.total || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                    </div>
+                    
+                    ${order.status !== 'completed' ? `
+                    <div class="space-y-2">
+                        ${order.status === 'pending' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'processing')" 
+                                class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition-colors">
+                                Mulai Proses
+                            </button>
+                        ` : ''}
+                        ${order.status === 'processing' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'completed')" 
+                                class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold transition-colors">
+                                Tandai Selesai
+                            </button>
+                        ` : ''}
+                        <button onclick="closeOrderDetail()" 
+                            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-semibold transition-colors">
+                            Tutup
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('orderDetailModal').classList.remove('hidden');
+        }
+
+        // Close order detail
+        function closeOrderDetail() {
+            document.getElementById('orderDetailModal').classList.add('hidden');
+            state.selectedOrder = null;
+        }
+
+        // Update order status
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: newStatus })
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to update status');
+                
+                // Update local state
+                const order = state.orders.find(o => o.id === orderId);
+                if (order) {
+                    order.status = newStatus;
+                }
+                
+                filterOrders();
+                updateStats();
+                closeOrderDetail();
+                showToast('Status pesanan diperbarui');
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+                // Demo mode - update locally
+                const order = state.orders.find(o => o.id === orderId);
+                if (order) {
+                    order.status = newStatus;
+                }
+                filterOrders();
+                updateStats();
+                closeOrderDetail();
+                showToast('Status pesanan diperbarui (demo)');
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayOrders = state.orders.filter(o => o.created_at.startsWith(today));
+            
+            const total = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+            const pending = todayOrders.filter(o => o.status === 'pending').length;
+            const processing = todayOrders.filter(o => o.status === 'processing').length;
+            const completed = todayOrders.filter(o => o.status === 'completed').length;
+            
+            document.getElementById('todayTotal').textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            document.getElementById('todayOrders').textContent = todayOrders.length;
+            document.getElementById('pendingCount').textContent = pending + processing;
+            document.getElementById('completedCount').textContent = completed;
+        }
+
+        // Refresh orders
+        function refreshOrders() {
+            loadOrders();
+            showToast('Memperbarui pesanan...');
+        }
+
+        // Show toast
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

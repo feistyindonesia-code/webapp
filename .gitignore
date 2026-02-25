@@ -1,0 +1,16 @@
+# Supabase
+supabase.exe
+supabase.tar.gz
+supabase/
+
+# Dependencies
+node_modules/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+*.log
+*.tmp

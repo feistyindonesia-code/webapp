@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesan - Feisty Malili</title>
+    <meta name="description" content="Pesan makanan dan minuman favorit Anda di Feisty Malili">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A24;
+            --secondary: #1A1A2E;
+            --accent: #F7C94B;
+            --light: #FFF8F0;
+            --success: #25D366;
+            --danger: #FF4757;
+        }
+        
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+            padding-bottom: 80px; /* Space for bottom nav */
+        }
+        
+        /* Product card */
+        .product-card {
+            transition: all 0.2s ease;
+        }
+        
+        .product-card:active {
+            transform: scale(0.98);
+        }
+        
+        /* Cart badge pulse */
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .cart-badge-animate {
+            animation: pulse-badge 0.3s ease;
+        }
+        
+        /* Modal animation */
+        .modal-enter {
+            animation: modal-in 0.3s ease;
+        }
+        
+        @keyframes modal-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Loading spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Toast notification */
+        .toast {
+            animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s;
+        }
+        
+        @keyframes toast-in {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes toast-out {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+        <div class="max-w-2xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">F</span>
+                    </div>
+                    <span class="font-bold text-lg text-[#1A1A2E]">Feisty</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="customerName" class="text-sm text-gray-600 hidden sm:inline">Halo, Tamu</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-16">
+        <!-- Loading State -->
+        <div id="loadingState" class="flex flex-col items-center justify-center min-h-[60vh]">
+            <div class="loader mb-4"></div>
+            <p class="text-gray-500">Memuat produk...</p>
+        </div>
+
+        <!-- Auth Error State -->
+        <div id="authError" class="hidden flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Akses Tidak Valid</h2>
+            <p class="text-gray-600 mb-4">Link yang Anda gunakan tidak valid atau sudah kedaluwarsa.</p>
+            <a href="/" class="text-[#FF6B35] font-medium">Kembali ke Beranda</a>
+        </div>
+
+        <!-- Products Section -->
+        <div id="productsSection" class="hidden">
+            <!-- Category Tabs -->
+            <div class="sticky top-16 bg-[#FFF8F0] z-40 py-2 border-b border-gray-100">
+                <div class="max-w-2xl mx-auto px-4 overflow-x-auto flex gap-2 scrollbar-hide" id="categoryTabs">
+                    <button class="category-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-[#FF6B35] text-white" data-category="all">
+                        Semua
+                    </button>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="max-w-2xl mx-auto px-4 py-4">
+                <div id="productsGrid" class="grid grid-cols-2 gap-3">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <div class="max-w-2xl mx-auto flex items-center justify-around py-2">
+            <!-- Menu Button -->
+            <button onclick="showProducts()" class="flex flex-col items-center p-2 text-[#FF6B35]">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span class="text-xs mt-1">Menu</span>
+            </button>
+            
+            <!-- Cart Button -->
+            <button onclick="showCart()" class="flex flex-col items-center p-2 text-gray-600 relative">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-xs mt-1">Keranjang</span>
+                <span id="cartBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-[#FF6B35] text-white text-xs rounded-full flex items-center justify-center hidden">0</span>
+            </button>
+            
+            <!-- Orders Button -->
+            <button onclick="showOrders()" class="flex flex-col items-center p-2 text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                </svg>
+                <span class="text-xs mt-1">Pesanan</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[80vh] overflow-hidden modal-enter">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Keranjang</h2>
+                <button onclick="closeCart()" class="p-2">
+                    <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="cartItems" class="overflow-y-auto p-4" style="max-height: 50vh;">
+                <!-- Cart items will be loaded here -->
+            </div>
+            
+            <div class="p-4 border-t border-gray-100">
+                <div class="flex justify-between mb-4">
+                    <span class="font-medium">Total:</span>
+                    <span id="cartTotal" class="text-xl font-bold text-[#FF6B35]">Rp 0</span>
+                </div>
+                <button onclick="checkout()" class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
+                    Pesan Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Success Modal -->
+    <div id="orderSuccessModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center modal-enter">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Pesanan Diterima!</h2>
+            <p class="text-gray-600 mb-4">Pesanan Anda akan diproses. Kami akan menghubungi Anda melalui WhatsApp.</p>
+            <button onclick="closeOrderSuccess()" class="w-full bg-[#FF6B35] text-white py-3 rounded-xl font-semibold">
+                Pesan Lagi
+            </button>
+        </div>
+    </div>
+
+    <!-- Orders List Modal -->
+    <div id="ordersModal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[80vh] overflow-hidden modal-enter">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Pesanan Saya</h2>
+                <button onclick="closeOrders()" class="p-2">
+                    <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="ordersList" class="overflow-y-auto p-4" style="max-height: 65vh;">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full text-sm hidden toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- Supabase Client -->
+    <script>
+        // Configuration - Use shared Supabase config
+        const SUPABASE_URL = window.SUPABASE_URL || 'https://ztefkcbgkdqgvcfphvys.supabase.co';
+        const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
+        const MALILI_OUTLET_ID = '00000000-0000-0000-0000-000000000001';
+
+        // App State
+        let state = {
+            customer: null,
+            products: [],
+            cart: [],
+            orders: [],
+            currentView: 'products'
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            await init();
+        });
+
+        async function init() {
+            // Get token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const customerId = urlParams.get('customer');
+            const phone = urlParams.get('phone');
+            const name = urlParams.get('name');
+
+            // Option 1: Using token + customer ID (existing method)
+            if (token && customerId) {
+                await loadCustomerById(customerId);
+            }
+            // Option 2: Using phone number (from WhatsApp link)
+            else if (phone) {
+                await loadCustomerByPhone(phone, name);
+            }
+            // No valid params
+            else {
+                showAuthError();
+                return;
+            }
+
+            // Load products
+            await loadProducts();
+            
+            // Load customer orders
+            await loadOrders();
+        }
+
+        // Load customer by ID (existing method)
+        async function loadCustomerById(customerId) {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?id=eq.${customerId}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to load customer');
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    state.customer = data[0];
+                    document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
+                    document.getElementById('customerName').classList.remove('hidden');
+                } else {
+                    showAuthError();
+                }
+            } catch (error) {
+                console.error('Error loading customer:', error);
+                showAuthError();
+            }
+        }
+
+        // Load customer by phone (new method for WhatsApp)
+        async function loadCustomerByPhone(phone, suggestedName) {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to load customer');
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    // Customer exists
+                    state.customer = data[0];
+                    document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
+                    document.getElementById('customerName').classList.remove('hidden');
+                } else {
+                    // Create new customer automatically
+                    const createResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/customers`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify({
+                                name: suggestedName || 'Customer WhatsApp',
+                                phone: phone
+                            })
+                        }
+                    );
+
+                    if (!createResponse.ok) throw new Error('Failed to create customer');
+                    
+                    const newCustomer = await createResponse.json();
+                    state.customer = newCustomer[0];
+                    document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
+                    document.getElementById('customerName').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading customer:', error);
+                showAuthError();
+            }
+        }
+
+        // Show error state
+        function showAuthError() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('authError').classList.remove('hidden');
+            document.getElementById('productsSection').classList.add('hidden');
+        }
+
+        // Load customer from database
+        async function loadCustomer(customerId) {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?id=eq.${customerId}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to load customer');
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    state.customer = data[0];
+                    document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
+                    document.getElementById('customerName').classList.remove('hidden');
+                } else {
+                    showAuthError();
+                }
+            } catch (error) {
+                console.error('Error loading customer:', error);
+                showAuthError();
+            }
+        }
+
+        // Load products
+        async function loadProducts() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/products?outlet_id=eq.${MALILI_OUTLET_ID}&active=eq.true&select=*`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to load products');
+                
+                const products = await response.json();
+                state.products = products;
+                
+                renderProducts(products);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('productsSection').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error loading products:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <p class="text-red-500">Gagal memuat produk. Silakan refresh halaman.</p>
+                `;
+            }
+        }
+
+        // Render products
+        function renderProducts(products) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = products.map(product => `
+                <div class="product-card bg-white rounded-xl p-3 shadow-sm" onclick="addToCart('${product.id}')">
+                    <div class="aspect-square bg-gradient-to-br from-[#FF6B35]/10 to-[#F7C94B]/10 rounded-lg mb-2 flex items-center justify-center">
+                        <svg class="w-12 h-12 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M9.75 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-medium text-sm text-gray-800 truncate">${product.name}</h3>
+                    <p class="text-[#FF6B35] font-bold">Rp ${product.price.toLocaleString('id-ID')}</p>
+                    <button class="w-full mt-2 bg-[#FF6B35]/10 text-[#FF6B35] text-sm py-1.5 rounded-lg font-medium">
+                        Tambah +
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Add to cart
+        function addToCart(productId) {
+            const product = state.products.find(p => p.id === productId);
+            if (!product) return;
+
+            const existingItem = state.cart.find(item => item.product_id === productId);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+                existingItem.subtotal = existingItem.quantity * existingItem.unit_price;
+            } else {
+                state.cart.push({
+                    product_id: product.id,
+                    product_name: product.name,
+                    unit_price: product.price,
+                    quantity: 1,
+                    subtotal: product.price
+                });
+            }
+
+            updateCartUI();
+            showToast(`${product.name} ditambahkan ke keranjang`);
+        }
+
+        // Update cart UI
+        function updateCartUI() {
+            const badge = document.getElementById('cartBadge');
+            const totalItems = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            badge.textContent = totalItems;
+            badge.classList.remove('hidden');
+            badge.classList.add('cart-badge-animate');
+            
+            setTimeout(() => badge.classList.remove('cart-badge-animate'), 300);
+        }
+
+        // Show cart modal
+        function showCart() {
+            const modal = document.getElementById('cartModal');
+            const container = document.getElementById('cartItems');
+            const totalEl = document.getElementById('cartTotal');
+
+            if (state.cart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <p class="text-gray-500">Keranjang kosong</p>
+                    </div>
+                `;
+                totalEl.textContent = 'Rp 0';
+            } else {
+                container.innerHTML = state.cart.map((item, index) => `
+                    <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-800">${item.product_name}</h4>
+                            <p class="text-sm text-gray-500">Rp ${item.unit_price.toLocaleString('id-ID')} each</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="updateQuantity(${index}, -1)" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <span class="font-medium w-8 text-center">${item.quantity}</span>
+                            <button onclick="updateQuantity(${index}, 1)" class="w-8 h-8 rounded-full bg-[#FF6B35] text-white flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="text-right ml-4">
+                            <p class="font-medium">Rp ${item.subtotal.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                `).join('');
+
+                const total = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
+                totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // Update quantity
+        function updateQuantity(index, delta) {
+            const item = state.cart[index];
+            item.quantity += delta;
+            
+            if (item.quantity <= 0) {
+                state.cart.splice(index, 1);
+            } else {
+                item.subtotal = item.quantity * item.unit_price;
+            }
+
+            updateCartUI();
+            showCart();
+        }
+
+        // Close cart
+        function closeCart() {
+            document.getElementById('cartModal').classList.add('hidden');
+        }
+
+        // Checkout
+        async function checkout() {
+            if (state.cart.length === 0) {
+                showToast('Keranjang kosong');
+                return;
+            }
+
+            if (!state.customer) {
+                showToast('Silakan login ulang');
+                return;
+            }
+
+            const total = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
+
+            try {
+                // Create order
+                const orderResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/orders`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify({
+                            outlet_id: MALILI_OUTLET_ID,
+                            customer_id: state.customer.id,
+                            total: total,
+                            status: 'pending'
+                        })
+                    }
+                );
+
+                if (!orderResponse.ok) throw new Error('Failed to create order');
+                
+                const orders = await orderResponse.json();
+                const order = orders[0];
+
+                // Create order items
+                const orderItems = state.cart.map(item => ({
+                    order_id: order.id,
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    quantity: item.quantity,
+                    unit_price: item.unit_price,
+                    subtotal: item.subtotal
+                }));
+
+                const itemsResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/order_items`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(orderItems)
+                    }
+                );
+
+                if (!itemsResponse.ok) throw new Error('Failed to create order items');
+
+                // Clear cart and show success
+                state.cart = [];
+                updateCartUI();
+                closeCart();
+                document.getElementById('orderSuccessModal').classList.remove('hidden');
+                
+                // Reload orders
+                await loadOrders();
+
+            } catch (error) {
+                console.error('Checkout error:', error);
+                showToast('Gagal membuat pesanan. Silakan coba lagi.');
+            }
+        }
+
+        // Close order success modal
+        function closeOrderSuccess() {
+            document.getElementById('orderSuccessModal').classList.add('hidden');
+        }
+
+        // Load orders
+        async function loadOrders() {
+            if (!state.customer) return;
+
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/orders?customer_id=eq.${state.customer.id}&order=created_at.desc&limit=10`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to load orders');
+                
+                state.orders = await response.json();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        // Show orders modal
+        async function showOrders() {
+            await loadOrders();
+            
+            const modal = document.getElementById('ordersModal');
+            const container = document.getElementById('ordersList');
+
+            if (state.orders.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <p class="text-gray-500">Belum ada pesanan</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = state.orders.map(order => {
+                    const statusColors = {
+                        pending: 'bg-yellow-100 text-yellow-800',
+                        processing: 'bg-blue-100 text-blue-800',
+                        completed: 'bg-green-100 text-green-800'
+                    };
+                    const statusText = {
+                        pending: 'Menunggu',
+                        processing: 'Diproses',
+                        completed: 'Selesai'
+                    };
+                    
+                    return `
+                        <div class="bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-medium text-gray-800">Pesanan #${order.id.slice(0, 8)}</p>
+                                    <p class="text-sm text-gray-500">${new Date(order.created_at).toLocaleString('id-ID')}</p>
+                                </div>
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}">
+                                    ${statusText[order.status]}
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">${order.status === 'completed' ? 'Selesai' : 'Akan diproses'}</span>
+                                <span class="font-bold text-[#FF6B35]">Rp ${order.total.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // Close orders modal
+        function closeOrders() {
+            document.getElementById('ordersModal').classList.add('hidden');
+        }
+
+        // Show products (default view)
+        function showProducts() {
+            document.getElementById('cartModal').classList.add('hidden');
+            document.getElementById('ordersModal').classList.add('hidden');
+            document.getElementById('orderSuccessModal').classList.add('hidden');
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

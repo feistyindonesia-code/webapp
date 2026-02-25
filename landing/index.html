@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feisty - Minuman & Makanan Favorit di Malili</title>
+    <meta name="description" content="Feisty - Nikmati variasi minuman dan makanan lezat di Malili. Pesan sekarang melalui WhatsApp!">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A24;
+            --secondary: #1A1A2E;
+            --accent: #F7C94B;
+            --light: #FFF8F0;
+        }
+        
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Floating animation for hero */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Pulse animation for CTA */
+        @keyframes pulse-soft {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(255, 107, 53, 0); }
+        }
+        
+        .animate-pulse-soft {
+            animation: pulse-soft 2s infinite;
+        }
+        
+        /* Gradient text */
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Card hover effect */
+        .menu-card {
+            transition: all 0.3s ease;
+        }
+        
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Loading spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md shadow-sm z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">F</span>
+                    </div>
+                    <span class="font-bold text-xl text-[#1A1A2E]">Feisty</span>
+                </div>
+                
+                <!-- WhatsApp CTA -->
+                <a href="https://wa.me/6281234567890?text=Halo%20Feisty" 
+                   class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-4 py-2 rounded-full font-medium text-sm flex items-center gap-2 transition-all">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    <span class="hidden sm:inline">Hubungi Kami</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-24 pb-16 overflow-hidden">
+        <!-- Background decoration -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-[#FF6B35]/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-[#F7C94B]/10 rounded-full blur-3xl"></div>
+        
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <!-- Hero Text -->
+                <div class="text-center md:text-left">
+                    <div class="inline-block px-4 py-1 bg-[#FF6B35]/10 rounded-full text-[#FF6B35] font-medium text-sm mb-4">
+                        ✨ Malili's Favorite Spot
+                    </div>
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#1A1A2E] leading-tight mb-4">
+                        Nikmati <span class="text-gradient">Rasa Lezat</span> Setiap Hari
+                    </h1>
+                    <p class="text-lg text-gray-600 mb-8 max-w-lg mx-auto md:mx-0">
+                        Feisty menghadirkan berbagai pilihan minuman dan makanan favorit Anda. 
+                        Pesan sekarang dan nikmati pengalaman culinary yang tak terlupakan!
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan" 
+                           class="bg-[#FF6B35] hover:bg-[#E85A24] text-white px-8 py-4 rounded-full font-semibold text-lg flex items-center justify-center gap-2 transition-all animate-pulse-soft">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                            Pesan via WhatsApp
+                        </a>
+                        <a href="#menu" 
+                           class="bg-white hover:bg-gray-50 text-[#1A1A2E] px-8 py-4 rounded-full font-semibold text-lg border-2 border-gray-200 flex items-center justify-center gap-2 transition-all">
+                            Lihat Menu
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Hero Image/Illustration -->
+                <div class="relative animate-float">
+                    <div class="relative z-10">
+                        <div class="w-72 h-72 md:w-96 md:h-96 mx-auto bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] rounded-3xl flex items-center justify-center">
+                            <div class="text-center text-white">
+                                <div class="text-6xl md:text-8xl font-extrabold">F</div>
+                                <div class="text-xl font-medium">Feisty</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Decorative circles -->
+                    <div class="absolute top-4 right-4 w-20 h-20 bg-[#F7C94B] rounded-full opacity-50"></div>
+                    <div class="absolute bottom-8 left-4 w-12 h-12 bg-[#1A1A2E] rounded-full opacity-20"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-16 bg-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-[#1A1A2E] mb-4">
+                    Kenapa Memilih Feisty?
+                </h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    Kami berkomitmen memberikan pengalaman terbaik untuk setiap pelanggan
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="text-center p-6">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#FF6B35]/10 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-[#1A1A2E] mb-2">Cepat & Praktis</h3>
+                    <p class="text-gray-600">Pesan melalui WhatsApp dan terima pesanan dengan cepat</p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="text-center p-6">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#F7C94B]/20 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-[#F7C94B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-[#1A1A2E] mb-2">Kualitas Terjamin</h3>
+                    <p class="text-gray-600">Bahan segar dan resep rahasia yang lezat</p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="text-center p-6">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#25D366]/10 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-[#1A1A2E] mb-2">Lokasi Strategis</h3>
+                    <p class="text-gray-600">Terletak di jantung Malili, mudah dijangkau</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Preview Section -->
+    <section id="menu" class="py-16 bg-[#FFF8F0]">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-[#1A1A2E] mb-4">
+                    Menu Favorit
+                </h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    Pilihan menu andalan yang paling banyak dipesan pelanggan kami
+                </p>
+            </div>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Menu Item 1 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#FF6B35]/20 to-[#F7C94B]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Kopi Hitam</h3>
+                    <p class="text-gray-500 text-sm mb-2">Kopi berkualitas dengan rasa authentic</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 15.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Kopi%20Hitam" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Menu Item 2 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#FF6B35]/20 to-[#F7C94B]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M9.75 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Kopi Susu</h3>
+                    <p class="text-gray-500 text-sm mb-2">Perpaduan kopi dan susu yang creamy</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 18.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Kopi%20Susu" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Menu Item 3 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#25D366]/20 to-[#FF6B35]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.97zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.97z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Teh Manis</h3>
+                    <p class="text-gray-500 text-sm mb-2">Teh segar dengan tingkat manis yang pas</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 12.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Teh%20Manis" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Menu Item 4 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#F7C94B]/20 to-[#FF6B35]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#F7C94B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Es Jeruk</h3>
+                    <p class="text-gray-500 text-sm mb-2">Jeruk segar dengan es yang menyegarkan</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 15.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Es%20Jeruk" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Menu Item 5 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#FF6B35]/20 to-[#1A1A2E]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.125-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.125 1.124H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Nasi Goreng</h3>
+                    <p class="text-gray-500 text-sm mb-2">Nasi goreng spesial dengan topping lengkap</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 25.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Nasi%20Goreng" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Menu Item 6 -->
+                <div class="menu-card bg-white rounded-2xl p-6 shadow-sm">
+                    <div class="w-full h-40 bg-gradient-to-br from-[#1A1A2E]/20 to-[#FF6B35]/20 rounded-xl mb-4 flex items-center justify-center">
+                        <svg class="w-16 h-16 text-[#1A1A2E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.125-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.125 1.124H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-[#1A1A2E]">Mie Goreng</h3>
+                    <p class="text-gray-500 text-sm mb-2">Mie goreng gurih dengan bumbu khas</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[#FF6B35] font-bold text-xl">Rp 22.000</span>
+                        <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan%20Mie%20Goreng" 
+                           class="bg-[#25D366] hover:bg-[#20BD5A] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Pesan
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-10">
+                <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20melihat%20menu%20lengkap" 
+                   class="inline-block bg-[#1A1A2E] hover:bg-[#2D2D4A] text-white px-8 py-3 rounded-full font-semibold transition-all">
+                    Lihat Menu Lengkap
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-16 bg-gradient-to-br from-[#FF6B35] to-[#F7C94B]">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
+                Pesan Sekarang via WhatsApp!
+            </h2>
+            <p class="text-white/80 text-lg mb-8">
+                Klik tombol di bawah untuk memulai pesan. Tim kami akan segera merespons.
+            </p>
+            <a href="https://wa.me/6281234567890?text=Halo%20Feisty%2C%20saya%20ingin%20memesan" 
+               class="inline-flex items-center gap-3 bg-white hover:bg-gray-50 text-[#1A1A2E] px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                <svg class="w-8 h-8 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Hubungi WhatsApp
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-[#1A1A2E] py-8">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">F</span>
+                    </div>
+                    <span class="text-white font-semibold">Feisty</span>
+                </div>
+                <p class="text-gray-400 text-sm text-center md:text-right">
+                    © 2024 Feisty Malili. All rights reserved.<br>
+                    Minuman & Makanan Favorit Anda
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
