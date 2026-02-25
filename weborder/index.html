@@ -6,16 +6,13 @@
     <title>Pesan - Feisty</title>
     <meta name="description" content="Pesan makanan dan minuman favorit Anda di Feisty">
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Custom Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Leaflet CSS for Maps -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         :root {
@@ -28,42 +25,44 @@
             --danger: #FF4757;
         }
         
-        * { font-family: 'Poppins', sans-serif; }
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
         
         body {
             background-color: var(--light);
             padding-bottom: 80px;
         }
         
-        .product-card { transition: all 0.2s ease; }
-        .product-card:active { transform: scale(0.98); }
+        .product-card {
+            transition: all 0.2s ease;
+        }
+        
+        .product-card:active {
+            transform: scale(0.98);
+        }
+        
+        .cart-badge-animate {
+            animation: pulse-badge 0.3s ease;
+        }
         
         @keyframes pulse-badge {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
         
-        .cart-badge-animate { animation: pulse-badge 0.3s ease; }
-        
-        .modal-enter { animation: modal-in 0.3s ease; }
+        .modal-enter {
+            animation: modal-in 0.3s ease;
+        }
         
         @keyframes modal-in {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+        .toast {
+            animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s;
         }
-        
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .toast { animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s; }
         
         @keyframes toast-in {
             from { transform: translateY(100%); opacity: 0; }
@@ -74,61 +73,44 @@
             from { transform: translateY(0); opacity: 1; }
             to { transform: translateY(100%); opacity: 0; }
         }
-        
-        .step-indicator .step { opacity: 0.5; }
-        .step-indicator .step.active { opacity: 1; }
-        .step-indicator .step.completed { opacity: 1; color: var(--success); }
-        
-        #map { height: 250px; width: 100%; border-radius: 12px; }
     </style>
 </head>
 <body class="min-h-screen">
-    <!-- Header -->
+    <!-- Header dengan Info Customer -->
     <header class="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
         <div class="max-w-2xl mx-auto px-4 py-3">
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
-                        <span class="text-white font-bold text-sm">F</span>
+                <div class="flex items-center gap-3">
+                    <!-- Foto Profile -->
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center text-white font-bold text-lg" id="customerAvatar">
+                        ?
                     </div>
-                    <span class="font-bold text-lg text-[#1A1A2E]">Feisty</span>
+                    <div>
+                        <span class="font-semibold text-gray-800" id="customerName">Loading...</span>
+                        <p class="text-xs text-gray-500" id="customerPhone"></p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span id="outletBadge" class="text-xs bg-[#FF6B35] text-white px-2 py-1 rounded-full font-medium hidden">
-                        Outlet
-                    </span>
-                </div>
-            </div>
-            
-            <!-- Step Indicator -->
-            <div class="flex items-center justify-between mt-3 step-indicator">
-                <div class="flex flex-col items-center step active" id="step1Indicator">
-                    <div class="w-8 h-8 rounded-full bg-[#FF6B35] text-white flex items-center justify-center text-sm font-bold">1</div>
-                    <span class="text-xs mt-1">Info</span>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-200 mx-2" id="progress1"></div>
-                <div class="flex flex-col items-center step" id="step2Indicator">
-                    <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold">2</div>
-                    <span class="text-xs mt-1">Menu</span>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-200 mx-2" id="progress2"></div>
-                <div class="flex flex-col items-center step" id="step3Indicator">
-                    <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold">3</div>
-                    <span class="text-xs mt-1">Alamat</span>
+                    <button onclick="showCart()" class="relative p-2 bg-[#FF6B35] rounded-full">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <span id="cartBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="pt-28">
-        <!-- Loading State -->
+    <main class="pt-20">
+        <!-- Loading -->
         <div id="loadingState" class="flex flex-col items-center justify-center min-h-[60vh]">
-            <div class="loader mb-4"></div>
-            <p class="text-gray-500">Memuat...</p>
+            <div class="w-8 h-8 border-3 border-[#FF6B35] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-gray-500">Memuat menu...</p>
         </div>
 
-        <!-- Auth Error State -->
+        <!-- Error State -->
         <div id="authError" class="hidden flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
             <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,153 +122,15 @@
             <a href="/" class="text-[#FF6B35] font-medium">Kembali ke Beranda</a>
         </div>
 
-        <!-- Step 1: Customer Info -->
-        <div id="step1Section" class="hidden px-4">
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-white rounded-2xl p-6 shadow-sm mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">👤 Informasi Pelanggan</h2>
-                    
-                    <!-- Customer Photo -->
-                    <div class="flex flex-col items-center mb-6">
-                        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center overflow-hidden mb-3" id="customerPhotoContainer">
-                            <span class="text-3xl text-white font-bold" id="customerInitial">?</span>
-                        </div>
-                        <img id="customerPhoto" class="w-20 h-20 rounded-full object-cover hidden mb-3" alt="Foto Profil">
-                        <h3 class="font-semibold text-gray-800" id="customerNameDisplay">-</h3>
-                        <p class="text-sm text-gray-500" id="customerPhoneDisplay">-</p>
-                    </div>
-                    
-                    <!-- Saved Addresses -->
-                    <div id="savedAddresses" class="mb-4">
-                        <h4 class="font-medium text-gray-700 mb-2">📍 Alamat Tersimpan</h4>
-                        <div id="addressesList" class="space-y-2">
-                            <p class="text-sm text-gray-400">Belum ada alamat tersimpan</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Use Current Location -->
-                    <button onclick="requestLocation()" class="w-full bg-[#FF6B35]/10 text-[#FF6B35] py-3 rounded-xl font-medium flex items-center justify-center gap-2 mb-4">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        Gunakan Lokasi Saat Ini
-                    </button>
-                    
-                    <p class="text-xs text-gray-400 text-center">Kami akan menemukan outlet terdekat dari lokasi Anda</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2: Menu Selection -->
-        <div id="step2Section" class="hidden">
-            <!-- Outlet Info Banner -->
-            <div id="outletInfoBanner" class="bg-white border-b border-gray-100 px-4 py-3">
-                <div class="max-w-2xl mx-auto flex items-center justify-between">
-                    <div>
-                        <h3 class="font-semibold text-gray-800" id="selectedOutletName">Loading...</h3>
-                        <p class="text-sm text-gray-500" id="selectedOutletDistance">Menghitung jarak...</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs text-gray-400">Ojol</p>
-                        <p class="font-medium text-[#FF6B35]" id="deliveryFeeDisplay">-</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Category Tabs -->
-            <div class="sticky top-16 bg-[#FFF8F0] z-40 py-2 border-b border-gray-100">
-                <div class="max-w-2xl mx-auto px-4 overflow-x-auto flex gap-2 scrollbar-hide" id="categoryTabs">
-                    <button class="category-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-[#FF6B35] text-white" data-category="all">
-                        Semua
-                    </button>
-                </div>
-            </div>
-
-            <!-- Products Grid -->
+        <!-- Products Grid -->
+        <div id="productsSection" class="hidden">
             <div class="max-w-2xl mx-auto px-4 py-4">
                 <div id="productsGrid" class="grid grid-cols-2 gap-3">
-                    <!-- Products will be loaded here -->
+                    <!-- Products loaded here -->
                 </div>
-            </div>
-        </div>
-
-        <!-- Step 3: Delivery Location -->
-        <div id="step3Section" class="hidden px-4">
-            <div class="max-w-2xl mx-auto">
-                <!-- Map -->
-                <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">📍 Lokasi Pengiriman</h2>
-                    
-                    <div id="map" class="mb-3"></div>
-                    
-                    <div class="flex gap-2 mb-3">
-                        <button onclick="getCurrentLocation()" class="flex-1 bg-[#FF6B35]/10 text-[#FF6B35] py-2 rounded-lg text-sm font-medium">
-                            📍 Lokasi Saya
-                        </button>
-                        <button onclick="openAddressInput()" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium">
-                            ✏️ Ketik Alamat
-                        </button>
-                    </div>
-                    
-                    <input type="text" id="addressInput" placeholder="Masukkan alamat lengkap..." class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#FF6B35] mb-3">
-                    
-                    <textarea id="deliveryNotes" placeholder="Catatan untuk driver (opsional)..." class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#FF6B35]" rows="2"></textarea>
-                </div>
-                
-                <!-- Order Summary -->
-                <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">📋 Ringkasan Pesanan</h2>
-                    
-                    <div class="flex justify-between mb-2">
-                        <span class="text-gray-600">Subtotal</span>
-                        <span class="font-medium" id="summarySubtotal">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between mb-2">
-                        <span class="text-gray-600">Ojol</span>
-                        <span class="font-medium" id="summaryDeliveryFee">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t border-gray-100">
-                        <span class="font-semibold">Total</span>
-                        <span class="font-bold text-xl text-[#FF6B35]" id="summaryTotal">Rp 0</span>
-                    </div>
-                </div>
-                
-                <!-- Place Order Button -->
-                <button onclick="placeOrder()" id="placeOrderBtn" class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-4 rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Pesan Sekarang
-                </button>
             </div>
         </div>
     </main>
-
-    <!-- Bottom Navigation -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-        <div class="max-w-2xl mx-auto flex items-center justify-around py-2">
-            <button onclick="goToStep(1)" class="flex flex-col items-center p-2 text-[#FF6B35]" id="navStep1">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <span class="text-xs mt-1">Info</span>
-            </button>
-            
-            <button onclick="goToStep(2)" class="flex flex-col items-center p-2 text-gray-600" id="navStep2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-                <span class="text-xs mt-1">Menu</span>
-            </button>
-            
-            <button onclick="goToStep(3)" class="flex flex-col items-center p-2 text-gray-600 relative" id="navStep3">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span class="text-xs mt-1">Alamat</span>
-                <span id="cartBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-[#FF6B35] text-white text-xs rounded-full flex items-center justify-center hidden">0</span>
-            </button>
-        </div>
-    </nav>
 
     <!-- Cart Modal -->
     <div id="cartModal" class="fixed inset-0 bg-black/50 z-50 hidden">
@@ -307,14 +151,14 @@
                     <span class="font-medium">Total:</span>
                     <span id="cartTotal" class="text-xl font-bold text-[#FF6B35]">Rp 0</span>
                 </div>
-                <button onclick="proceedToDelivery()" class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
-                    Lanjut ke Pengiriman
+                <button onclick="checkout()" class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
+                    Bayar via WhatsApp
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Order Success Modal -->
+    <!-- Order Success -->
     <div id="orderSuccessModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-4">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center modal-enter">
             <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -330,52 +174,22 @@
         </div>
     </div>
 
-    <!-- Location Error Modal -->
-    <div id="locationErrorModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-4">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center modal-enter">
-            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-            <h2 class="text-xl font-semibold text-gray-800 mb-2">Lokasi Tidak Ditemukan</h2>
-            <p class="text-gray-600 mb-4" id="locationErrorMessage">Kami tidak dapat menemukan lokasi Anda. Silakan masukkan alamat secara manual.</p>
-            <button onclick="closeLocationError()" class="w-full bg-[#FF6B35] text-white py-3 rounded-xl font-semibold">
-                Mengerti
-            </button>
-        </div>
-    </div>
-
-    <!-- Toast Notification -->
+    <!-- Toast -->
     <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full text-sm hidden toast">
         <span id="toastMessage"></span>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // Configuration
-        const SUPABASE_URL = window.SUPABASE_URL || 'https://ztefkcbgkdqgvcfphvys.supabase.co';
-        const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
-        const DEFAULT_OUTLET_ID = '00000000-0000-0000-0000-000000000001';
+        const SUPABASE_URL = 'https://ztefkcbgkdqgvcfphvys.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
+        const MALILI_OUTLET_ID = '00000000-0000-0000-0000-000000000001';
 
-        // App State
         let state = {
             customer: null,
             products: [],
-            cart: [],
-            orders: [],
-            currentStep: 1,
-            outlet: null,
-            deliveryLocation: null,
-            deliveryFee: 0,
-            distance: 0,
-            map: null,
-            marker: null
+            cart: []
         };
 
-        // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
             await init();
         });
@@ -384,19 +198,20 @@
             const urlParams = new URLSearchParams(window.location.search);
             const phone = urlParams.get('phone');
             const name = urlParams.get('name');
-            const refCode = urlParams.get('ref');
 
             if (!phone) {
                 showAuthError();
                 return;
             }
 
-            await loadCustomerByPhone(phone, name, refCode);
-            showStep(1);
+            // Load customer
+            await loadCustomerByPhone(phone, name);
+            
+            // Load products
+            await loadProducts();
         }
 
-        // Load customer by phone
-        async function loadCustomerByPhone(phone, suggestedName, refCode) {
+        async function loadCustomerByPhone(phone, suggestedName) {
             try {
                 const response = await fetch(
                     `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
@@ -416,30 +231,6 @@
                     state.customer = data[0];
                 } else {
                     // Create new customer
-                    const customerData = {
-                        name: suggestedName || 'Customer WhatsApp',
-                        phone: phone
-                    };
-                    
-                    if (refCode) {
-                        const referrerResponse = await fetch(
-                            `${SUPABASE_URL}/rest/v1/customers?referral_code=eq.${refCode}`,
-                            {
-                                headers: {
-                                    'apikey': SUPABASE_ANON_KEY,
-                                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                                }
-                            }
-                        );
-                        
-                        if (referrerResponse.ok) {
-                            const referrers = await referrerResponse.json();
-                            if (referrers && referrers.length > 0) {
-                                customerData.referred_by = referrers[0].id;
-                            }
-                        }
-                    }
-                    
                     const createResponse = await fetch(
                         `${SUPABASE_URL}/rest/v1/customers`,
                         {
@@ -450,7 +241,10 @@
                                 'Content-Type': 'application/json',
                                 'Prefer': 'return=representation'
                             },
-                            body: JSON.stringify(customerData)
+                            body: JSON.stringify({
+                                name: suggestedName || 'Customer',
+                                phone: phone
+                            })
                         }
                     );
 
@@ -460,293 +254,22 @@
                     state.customer = newCustomer[0];
                 }
 
-                updateCustomerUI();
-                await loadSavedLocations();
-                
+                // Update UI
+                const initial = state.customer.name ? state.customer.name.charAt(0).toUpperCase() : '?';
+                document.getElementById('customerAvatar').textContent = initial;
+                document.getElementById('customerName').textContent = state.customer.name;
+                document.getElementById('customerPhone').textContent = state.customer.phone;
+
             } catch (error) {
-                console.error('Error loading customer:', error);
+                console.error('Error:', error);
                 showAuthError();
             }
         }
 
-        // Update customer UI
-        function updateCustomerUI() {
-            const nameEl = document.getElementById('customerNameDisplay');
-            const phoneEl = document.getElementById('customerPhoneDisplay');
-            const initialEl = document.getElementById('customerInitial');
-            const photoEl = document.getElementById('customerPhoto');
-            const photoContainer = document.getElementById('customerPhotoContainer');
-
-            if (state.customer) {
-                nameEl.textContent = state.customer.name;
-                phoneEl.textContent = state.customer.phone;
-                initialEl.textContent = state.customer.name.charAt(0).toUpperCase();
-                
-                if (state.customer.photo_url) {
-                    photoEl.src = state.customer.photo_url;
-                    photoEl.classList.remove('hidden');
-                    initialEl.classList.add('hidden');
-                } else {
-                    photoEl.classList.add('hidden');
-                    initialEl.classList.remove('hidden');
-                }
-            }
-        }
-
-        // Load saved locations
-        async function loadSavedLocations() {
-            if (!state.customer) return;
-
+        async function loadProducts() {
             try {
                 const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/customer_locations?customer_id=eq.${state.customer.id}`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
-
-                if (response.ok) {
-                    const locations = await response.json();
-                    const addressesList = document.getElementById('addressesList');
-                    
-                    if (locations && locations.length > 0) {
-                        addressesList.innerHTML = locations.map(loc => `
-                            <div class="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100" onclick="selectSavedLocation(${loc.latitude}, ${loc.longitude}, '${loc.address || ''}')">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="font-medium text-gray-800">${loc.label || 'Alamat'}</p>
-                                        <p class="text-sm text-gray-500">${loc.address || 'Koordinat: ' + loc.latitude + ', ' + loc.longitude}</p>
-                                    </div>
-                                    ${loc.is_default ? '<span class="text-xs bg-[#FF6B35] text-white px-2 py-1 rounded-full">Default</span>' : ''}
-                                </div>
-                            </div>
-                        `).join('');
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading locations:', error);
-            }
-        }
-
-        // Show error state
-        function showAuthError() {
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('authError').classList.remove('hidden');
-        }
-
-        // Step Navigation
-        function showStep(step) {
-            state.currentStep = step;
-            
-            // Hide all sections
-            document.getElementById('step1Section').classList.add('hidden');
-            document.getElementById('step2Section').classList.add('hidden');
-            document.getElementById('step3Section').classList.add('hidden');
-            
-            // Show current step
-            document.getElementById(`step${step}Section`).classList.remove('hidden');
-            
-            // Update indicators
-            updateStepIndicators();
-            
-            // Load data based on step
-            if (step === 2 && !state.outlet) {
-                // Try to get location or use default
-                findNearestOutlet();
-            }
-            
-            if (step === 3 && !state.map) {
-                setTimeout(() => initMap(), 300);
-            }
-        }
-
-        function goToStep(step) {
-            if (step === 2 && state.cart.length === 0) {
-                showToast('Pilih menu terlebih dahulu');
-                return;
-            }
-            
-            if (step === 3 && state.cart.length === 0) {
-                showToast('Keranjang kosong');
-                return;
-            }
-            
-            if (step === 3 && !state.deliveryLocation) {
-                showToast('Pilih lokasi pengiriman terlebih dahulu');
-                return;
-            }
-            
-            showStep(step);
-        }
-
-        function updateStepIndicators() {
-            for (let i = 1; i <= 3; i++) {
-                const indicator = document.getElementById(`step${i}Indicator`);
-                const nav = document.getElementById(`navStep${i}`);
-                const progress = document.getElementById(`progress${i}`);
-                
-                indicator.classList.remove('active', 'completed');
-                nav.classList.remove('text-[#FF6B35]');
-                nav.classList.add('text-gray-600');
-                
-                if (i < state.currentStep) {
-                    indicator.classList.add('completed');
-                    nav.classList.remove('text-gray-600');
-                    nav.classList.add('text-[#FF6B35]');
-                    if (progress) progress.classList.add('bg-[#FF6B35]');
-                } else if (i === state.currentStep) {
-                    indicator.classList.add('active');
-                    nav.classList.remove('text-gray-600');
-                    nav.classList.add('text-[#FF6B35]');
-                }
-            }
-        }
-
-        // Location Functions
-        function requestLocation() {
-            if (!navigator.geolocation) {
-                showLocationError('Geolocation tidak didukung oleh browser Anda');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    
-                    await findNearestOutlet(lat, lng);
-                },
-                (error) => {
-                    showLocationError('Tidak dapat mengakses lokasi. Silakan masukkan alamat secara manual.');
-                }
-            );
-        }
-
-        function getCurrentLocation() {
-            if (!navigator.geolocation) {
-                showToast('Geolocation tidak didukung');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    
-                    if (state.marker) {
-                        state.marker.setLatLng([lat, lng]);
-                    }
-                    
-                    state.deliveryLocation = { lat, lng };
-                    updateDeliveryInfo();
-                    calculateDeliveryFee();
-                },
-                (error) => {
-                    showToast('Tidak dapat mendapatkan lokasi');
-                }
-            );
-        }
-
-        function selectSavedLocation(lat, lng, address) {
-            state.deliveryLocation = { lat, lng, address };
-            findNearestOutlet(lat, lng);
-        }
-
-        function showLocationError(message) {
-            document.getElementById('locationErrorMessage').textContent = message;
-            document.getElementById('locationErrorModal').classList.remove('hidden');
-        }
-
-        function closeLocationError() {
-            document.getElementById('locationErrorModal').classList.add('hidden');
-            // Open address input manually
-            openAddressInput();
-        }
-
-        function openAddressInput() {
-            document.getElementById('addressInput').focus();
-        }
-
-        // Find nearest outlet
-        async function findNearestOutlet(lat = null, lng = null) {
-            // Default to Malili coordinates if no location provided
-            if (!lat || !lng) {
-                lat = -2.5833;
-                lng = 120.3667;
-            }
-
-            try {
-                // Call the find_nearest_outlet function via RPC
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/rpc/find_nearest_outlet`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            customer_lat: lat,
-                            customer_lng: lng
-                        })
-                    }
-                );
-
-                if (response.ok) {
-                    const outlet = await response.json();
-                    state.outlet = outlet;
-                    state.deliveryLocation = { lat, lng };
-                    
-                    // Update UI
-                    document.getElementById('selectedOutletName').textContent = outlet.outlet_name || 'Feisty Malili';
-                    document.getElementById('selectedOutletDistance').textContent = `${outlet.distance_km?.toFixed(1) || '0'} km dari outlet`;
-                    document.getElementById('outletBadge').textContent = outlet.outlet_name || 'Malili';
-                    document.getElementById('outletBadge').classList.remove('hidden');
-                    
-                    // Calculate delivery fee
-                    state.distance = outlet.distance_km || 0;
-                    state.deliveryFee = calculateDeliveryFee(outlet.distance_km, outlet.free_delivery_km, outlet.delivery_fee_per_km);
-                    
-                    document.getElementById('deliveryFeeDisplay').textContent = state.deliveryFee > 0 
-                        ? `Rp ${state.deliveryFee.toLocaleString('id-ID')}`
-                        : 'Gratis';
-                    
-                    // Load products from this outlet
-                    await loadProducts(outlet.outlet_id);
-                    
-                } else {
-                    // Fallback to default outlet
-                    state.outlet = { outlet_id: DEFAULT_OUTLET_ID, outlet_name: 'Malili', distance_km: 0, free_delivery_km: 3, delivery_fee_per_km: 2000 };
-                    await loadProducts(DEFAULT_OUTLET_ID);
-                }
-                
-                document.getElementById('loadingState').classList.add('hidden');
-                showStep(2);
-                
-            } catch (error) {
-                console.error('Error finding outlet:', error);
-                // Fallback
-                state.outlet = { outlet_id: DEFAULT_OUTLET_ID, outlet_name: 'Malili', distance_km: 0, free_delivery_km: 3, delivery_fee_per_km: 2000 };
-                await loadProducts(DEFAULT_OUTLET_ID);
-                document.getElementById('loadingState').classList.add('hidden');
-                showStep(2);
-            }
-        }
-
-        function calculateDeliveryFee(distance, freeRadius = 3, feePerKm = 2000) {
-            if (!distance || distance <= freeRadius) return 0;
-            return Math.round((distance - freeRadius) * feePerKm);
-        }
-
-        // Load products
-        async function loadProducts(outletId) {
-            try {
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/products?outlet_id=eq.${outletId}&active=eq.true&select=*`,
+                    `${SUPABASE_URL}/rest/v1/products?outlet_id=eq.${MALILI_OUTLET_ID}&active=eq.true&select=*`,
                     {
                         headers: {
                             'apikey': SUPABASE_ANON_KEY,
@@ -757,22 +280,28 @@
 
                 if (!response.ok) throw new Error('Failed to load products');
                 
-                state.products = await response.json();
-                renderProducts(state.products);
+                const products = await response.json();
+                state.products = products;
                 
+                renderProducts(products);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('productsSection').classList.remove('hidden');
+
             } catch (error) {
                 console.error('Error loading products:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <p class="text-red-500">Gagal memuat produk. Silakan refresh halaman.</p>
+                `;
             }
         }
 
-        // Render products
         function renderProducts(products) {
             const grid = document.getElementById('productsGrid');
             grid.innerHTML = products.map(product => `
                 <div class="product-card bg-white rounded-xl p-3 shadow-sm" onclick="addToCart('${product.id}')">
                     <div class="aspect-square bg-gradient-to-br from-[#FF6B35]/10 to-[#F7C94B]/10 rounded-lg mb-2 flex items-center justify-center">
                         <svg class="w-12 h-12 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M9.75 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
                         </svg>
                     </div>
                     <h3 class="font-medium text-sm text-gray-800 truncate">${product.name}</h3>
@@ -784,7 +313,6 @@
             `).join('');
         }
 
-        // Cart Functions
         function addToCart(productId) {
             const product = state.products.find(p => p.id === productId);
             if (!product) return;
@@ -885,102 +413,24 @@
             document.getElementById('cartModal').classList.add('hidden');
         }
 
-        function proceedToDelivery() {
-            closeCart();
-            showStep(3);
+        function showAuthError() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('authError').classList.remove('hidden');
+            document.getElementById('productsSection').classList.add('hidden');
         }
 
-        // Map Functions
-        function initMap() {
-            const defaultLat = state.deliveryLocation?.lat || -2.5833;
-            const defaultLng = state.deliveryLocation?.lng || 120.3667;
-            
-            state.map = L.map('map').setView([defaultLat, defaultLng], 14);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(state.map);
-            
-            state.marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.map);
-            
-            state.marker.on('dragend', function() {
-                const pos = state.marker.getLatLng();
-                state.deliveryLocation = { lat: pos.lat, lng: pos.lng };
-                calculateDeliveryFee();
-            });
-            
-            state.map.on('click', function(e) {
-                state.marker.setLatLng(e.latlng);
-                state.deliveryLocation = { lat: e.latlng.lat, lng: e.latlng.lng };
-                calculateDeliveryFee();
-            });
-        }
-
-        function updateDeliveryInfo() {
-            const subtotal = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
-            const total = subtotal + state.deliveryFee;
-            
-            document.getElementById('summarySubtotal').textContent = `Rp ${subtotal.toLocaleString('id-ID')}`;
-            document.getElementById('summaryDeliveryFee').textContent = state.deliveryFee > 0 
-                ? `Rp ${state.deliveryFee.toLocaleString('id-ID')}`
-                : 'Gratis';
-            document.getElementById('summaryTotal').textContent = `Rp ${total.toLocaleString('id-ID')}`;
-            
-            // Enable/disable order button
-            const orderBtn = document.getElementById('placeOrderBtn');
-            orderBtn.disabled = !state.deliveryLocation || state.cart.length === 0;
-        }
-
-        function calculateDeliveryFee() {
-            if (!state.outlet || !state.deliveryLocation) return;
-            
-            // Calculate distance using Haversine formula
-            const R = 6371; // Earth's radius in km
-            const lat1 = state.outlet.latitude || -2.5833;
-            const lng1 = state.outlet.longitude || 120.3667;
-            const lat2 = state.deliveryLocation.lat;
-            const lng2 = state.deliveryLocation.lng;
-            
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLng = (lng2 - lng1) * Math.PI / 180;
-            
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLng/2) * Math.sin(dLng/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            
-            state.distance = R * c;
-            state.deliveryFee = calculateDeliveryFee(
-                state.distance, 
-                state.outlet.free_delivery_km || 3, 
-                state.outlet.delivery_fee_per_km || 2000
-            );
-            
-            document.getElementById('deliveryFeeDisplay').textContent = state.deliveryFee > 0 
-                ? `Rp ${state.deliveryFee.toLocaleString('id-ID')}`
-                : 'Gratis';
-            
-            updateDeliveryInfo();
-        }
-
-        // Place Order
-        async function placeOrder() {
+        async function checkout() {
             if (state.cart.length === 0) {
                 showToast('Keranjang kosong');
                 return;
             }
 
-            if (!state.deliveryLocation) {
-                showToast('Pilih lokasi pengiriman');
+            if (!state.customer) {
+                showToast('Silakan login ulang');
                 return;
             }
 
-            const subtotal = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
-            const total = subtotal + state.deliveryFee;
-
-            const address = document.getElementById('addressInput').value || 
-                (state.deliveryLocation.address || `Koordinat: ${state.deliveryLocation.lat}, ${state.deliveryLocation.lng}`);
-            const notes = document.getElementById('deliveryNotes').value || '';
+            const total = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
 
             try {
                 // Create order
@@ -995,7 +445,7 @@
                             'Prefer': 'return=representation'
                         },
                         body: JSON.stringify({
-                            outlet_id: state.outlet.outlet_id,
+                            outlet_id: MALILI_OUTLET_ID,
                             customer_id: state.customer.id,
                             total: total,
                             status: 'pending'
@@ -1018,7 +468,7 @@
                     subtotal: item.subtotal
                 }));
 
-                const itemsResponse = await fetch(
+                await fetch(
                     `${SUPABASE_URL}/rest/v1/order_items`,
                     {
                         method: 'POST',
@@ -1031,173 +481,46 @@
                     }
                 );
 
-                if (!itemsResponse.ok) throw new Error('Failed to create order items');
+                // Send WhatsApp to customer
+                const orderDetails = state.cart.map(item => `• ${item.product_name} x${item.quantity} = Rp ${item.subtotal.toLocaleString('id-ID')}`).join('\n');
+                const message = `*PESANAN DITERIMA* ✅
 
-                // Create order delivery
-                const deliveryResponse = await fetch(
-                    `${SUPABASE_URL}/rest/v1/order_delivery`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            order_id: order.id,
-                            latitude: state.deliveryLocation.lat,
-                            longitude: state.deliveryLocation.lng,
-                            address: address,
-                            distance_km: Math.round(state.distance * 100) / 100,
-                            delivery_fee: state.deliveryFee,
-                            notes: notes
-                        })
-                    }
-                );
+Halo ${state.customer.name}!
 
-                // Save customer location
-                await fetch(
-                    `${SUPABASE_URL}/rest/v1/customer_locations`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            customer_id: state.customer.id,
-                            latitude: state.deliveryLocation.lat,
-                            longitude: state.deliveryLocation.lng,
-                            address: address,
-                            label: 'Alamat Terbaru',
-                            is_default: true
-                        })
-                    }
-                );
+Terima kasih sudah pesan di Feisty!
 
-                // Send WhatsApp notifications
-                await sendOrderNotifications(order, state.cart, address, notes);
+📋 *Detail Pesanan:*
+${orderDetails}
 
-                // Clear cart and show success
+💰 *Total: Rp ${total.toLocaleString('id-ID')}*
+
+📍 Pesanan akan diantar ke lokasi Anda.
+⏱️ Kami akan menghubungi Anda untuk konfirmasi.
+
+Terima kasih! 🙏`;
+
+                const waUrl = `https://wa.me/${state.customer.phone}?text=${encodeURIComponent(message)}`;
+                
                 state.cart = [];
                 updateCartUI();
                 closeCart();
                 document.getElementById('orderSuccessModal').classList.remove('hidden');
                 
+                // Optionally redirect to WhatsApp
+                setTimeout(() => {
+                    window.open(waUrl, '_blank');
+                }, 1500);
+
             } catch (error) {
-                console.error('Order error:', error);
+                console.error('Checkout error:', error);
                 showToast('Gagal membuat pesanan. Silakan coba lagi.');
-            }
-        }
-
-        // Send WhatsApp Notifications
-        async function sendOrderNotifications(order, items, address, notes) {
-            const orderId = order.id;
-            const total = state.cart.reduce((sum, item) => sum + item.subtotal, 0) + state.deliveryFee;
-            const customerName = state.customer.name;
-            const customerPhone = state.customer.phone;
-            const outletName = state.outlet.outlet_name;
-            
-            // Format items for message
-            const itemsText = items.map(item => `• ${item.quantity}x ${item.product_name} - Rp ${item.subtotal.toLocaleString('id-ID')}`).join('\n');
-            
-            // Customer confirmation message
-            const customerMessage = `✅ *Pesanan Diterima!*
-
-👋 Halo ${customerName}!
-
-📋 *Order ID:* #${orderId.slice(0, 8)}
-🏪 *Outlet:* ${outletName}
-📍 *Alamat:* ${address}
-📏 *Jarak:* ${state.distance.toFixed(1)}km
-🚴 *Ojol:* ${state.deliveryFee > 0 ? `Rp ${state.deliveryFee.toLocaleString('id-ID')}` : 'Gratis'}
-
-🛒 *Pesanan:*
-${itemsText}
-
-💵 *Total:* Rp ${total.toLocaleString('id-ID')}
-
-⏰ Pesanan akan diproses oleh ${outletName}
-📞 Hubungi kami jika ada pertanyaan!
-
-Terima kasih sudah memesan di Feisty! 🙏`;
-
-            // Send to customer
-            try {
-                await fetch('https://api.whacenter.com/api/send/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        device_id: '92b2af76-130d-46f0-b811-0874e3407988',
-                        number: customerPhone,
-                        message: customerMessage,
-                        file: null,
-                        schedule: null,
-                    }),
-                });
-            } catch (e) {
-                console.error('Failed to send customer notification:', e);
-            }
-
-            // Outlet admin notification
-            const outletAdminMessage = `🍔 *PESANAN BARU - Feisty*
-
-📋 *Order ID:* #${orderId.slice(0, 8)}
-👤 *Pelanggan:* ${customerName}
-📱 *Telepon:* ${customerPhone}
-📍 *Alamat:* ${address}
-📏 *Jarak:* ${state.distance.toFixed(1)}km
-💰 *Ojol:* Rp ${state.deliveryFee.toLocaleString('id-ID')}
-📝 *Catatan:* ${notes || '-'}
-
-🛒 *Pesanan:*
-${itemsText}
-
-💵 *Total:* Rp ${total.toLocaleString('id-ID')}
-
-⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}`;
-
-            // Get outlet WhatsApp and send
-            try {
-                const outletWaResponse = await fetch(
-                    `${SUPABASE_URL}/rest/v1/outlet_whatsapp?outlet_id=eq.${state.outlet.outlet_id}&is_primary=eq.true`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
-                
-                if (outletWaResponse.ok) {
-                    const outletWaData = await outletWaResponse.json();
-                    if (outletWaData && outletWaData.length > 0) {
-                        await fetch('https://api.whacenter.com/api/send/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                device_id: '92b2af76-130d-46f0-b811-0874e3407988',
-                                number: outletWaData[0].phone_number,
-                                message: outletAdminMessage,
-                                file: null,
-                                schedule: null,
-                            }),
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to send outlet notification:', e);
             }
         }
 
         function closeOrderSuccess() {
             document.getElementById('orderSuccessModal').classList.add('hidden');
-            // Reset and start over
-            window.location.reload();
         }
 
-        // Toast notification
         function showToast(message) {
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toastMessage');
