@@ -34,7 +34,7 @@ REM Set environment variables
 echo.
 echo Step 2: Setting environment variables...
 supabase secrets set WHATSAPP_DEVICE_ID=92b2af76-130d-46f0-b811-0874e3407988
-supabase secrets set WEB_ORDER_URL=https://ztefkcbgkdqgvcfphvys.supabase.co/weborder
+supabase secrets set WEB_ORDER_URL=https://feisty.my.id/weborder
 
 REM Deploy the function
 echo.

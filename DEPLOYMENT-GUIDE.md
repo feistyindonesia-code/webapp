@@ -49,7 +49,7 @@ Ketik perintah berikut satu per satu:
 
 ```
 e:\Feisty APP\supabase.exe secrets set WHATSAPP_DEVICE_ID=92b2af76-130d-46f0-b811-0874e3407988
-e:\Feisty APP\supabase.exe secrets set WEB_ORDER_URL=https://ztefkcbgkdqgvcfphvys.supabase.co/weborder
+e:\Feisty APP\supabase.exe secrets set WEB_ORDER_URL=https://feisty.my.id/weborder
 ```
 
 ## Langkah 6: Deploy Function
