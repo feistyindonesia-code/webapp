@@ -25,6 +25,69 @@ const WEB_ORDER_URL = Deno.env.get("WEB_ORDER_URL") || "https://feisty.my.id/web
 const WEBHOOK_KEY = Deno.env.get("WEBHOOK_KEY") || "feisty-webhook-secret-2024";
 const DEFAULT_OUTLET_ID = "00000000-0000-0000-0000-000000000001";
 
+// Get outlet coordinates for distance calculation
+async function getOutletLocation(supabase: any, outletId: string): Promise<{latitude: number, longitude: number, name: string} | null> {
+    const { data, error } = await supabase
+        .from("outlet_locations")
+        .select("latitude, longitude, outlets(name)")
+        .eq("outlet_id", outletId)
+        .single();
+
+    if (error || !data) {
+        // Default Malili coordinates
+        return { latitude: -2.5833, longitude: 120.3667, name: "Malili" };
+    }
+    return { latitude: data.latitude, longitude: data.longitude, name: data.outlets?.name || "Malili" };
+}
+
+// Find nearest outlet based on customer location (if provided)
+async function findNearestOutlet(supabase: any, lat?: number, lng?: number): Promise<{outlet_id: string, name: string, distance: number} | null> {
+    // If no location provided, return default outlet
+    if (!lat || !lng) {
+        const outlet = await getOutletLocation(supabase, DEFAULT_OUTLET_ID);
+        return { outlet_id: DEFAULT_OUTLET_ID, name: outlet?.name || "Malili", distance: 0 };
+    }
+
+    // Simple distance calculation for each outlet
+    const { data: outlets } = await supabase
+        .from("outlet_locations")
+        .select("outlet_id, latitude, longitude, outlets(name)")
+        .eq("is_active", true);
+
+    if (!outlets || outlets.length === 0) {
+        return { outlet_id: DEFAULT_OUTLET_ID, name: "Malili", distance: 0 };
+    }
+
+    // Calculate distance using Haversine formula
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    };
+
+    let nearest = null;
+    let minDist = Infinity;
+
+    for (const outlet of outlets) {
+        const dist = calculateDistance(lat, lng, outlet.latitude, outlet.longitude);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = {
+                outlet_id: outlet.outlet_id,
+                name: outlet.outlets?.name || "Unknown",
+                distance: dist
+            };
+        }
+    }
+
+    return nearest;
+}
+
 // Helper function to generate order link with phone and referral
 function getOrderLink(phone: string, name: string, referralCode?: string): string {
   let url = `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`;
@@ -90,11 +153,12 @@ async function updateCustomerName(supabase: any, phone: string, newName: string)
   return updatedCustomer;
 }
 
-async function getProducts(supabase: any): Promise<any[]> {
+async function getProducts(supabase: any, outletId?: string): Promise<any[]> {
+  const targetOutlet = outletId || DEFAULT_OUTLET_ID;
   const { data } = await supabase
     .from("products")
     .select("name, price, stock")
-    .eq("outlet_id", DEFAULT_OUTLET_ID)
+    .eq("outlet_id", targetOutlet)
     .eq("active", true)
     .limit(10);
   return data || [];
@@ -104,21 +168,22 @@ async function getProducts(supabase: any): Promise<any[]> {
 // GEMINI AI MARKETING
 // ============================================================
 
-async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[]): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products);
-  }
+async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[], outletName?: string): Promise<string> {
+    if (!GEMINI_API_KEY) {
+        return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products, outletName);
+    }
 
-  const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
-  const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
+    const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
+    const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
+    const outletDisplay = outletName || "Feisty Malili";
 
-  const systemPrompt = `Anda adalah "Feisty" - asisten marketing yang friendly dan helpful untuk restaurant Feisty.
+    const systemPrompt = `Anda adalah "Feisty" - asisten marketing yang friendly dan helpful untuk restaurant Feisty.
 
 TUJUAN UTAMA: Membuat customer下单 (pesan makanan) melalui link web ordering.
 
 INFO_restaurant:
 - Nama restaurant: Feisty
-- Lokasi: Malili, Sulawesi Selatan  
+- Lokasi: ${outletDisplay}
 - Menu: ${productList || "Menu lengkap tersedia"}
 
 ATURAN:
@@ -133,7 +198,7 @@ ATURAN:
 
 CONTOH:
 - Customer: "halo"
-  Feisty: "Halo [nama]! 👋 Selamat datang di Feisty! Ada yang bisa saya bantu? Mau lihat menu atau langsung pesan?"
+  Feisty: "Halo [nama]! 👋 Selamat datang di Feisty ${outletDisplay}! Ada yang bisa saya bantu? Mau lihat menu atau langsung pesan?"
 
 - Customer: "referral apa?"
   Feisty: "Program referral Feisty! Share kode Anda ke teman dan dapat komisi! Kode Anda: [kode]. Setiap teman yang pesan lewat link Anda, Anda dapat [nominal] komisi! 🎁"
@@ -172,10 +237,11 @@ Pesan: ${messageText}`;
   }
 }
 
-function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[]): string {
+function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[], outletName?: string): string {
   const msg = messageText.toLowerCase();
   const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
   const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
+  const outletDisplay = outletName || "Feisty Malili";
 
   // Handle name change
   if (msg.includes("ganti nama") || msg.includes("ubah nama") || msg.includes("rubah nama")) {
@@ -184,7 +250,7 @@ function getFallbackResponse(messageText: string, customerName: string, customer
   }
   
   if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello")) {
-    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\n📢 *Kode Referral Anda:* ${customerReferralCode}\n🎁 Total komisi: ${totalReferrals} teman\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
+    return `Halo ${customerName}! 👋\n\nSelamat datang di ${outletDisplay}!\n\n📢 *Kode Referral Anda:* ${customerReferralCode}\n🎁 Total komisi: ${totalReferrals} teman\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
   }
   
   if (msg.includes("menu")) {
@@ -221,12 +287,16 @@ async function handleNameCapture(supabase: any, phone: string, nameInput: string
     return "Maaf ada kesalahan. Boleh coba lagi?";
   }
 
-  const products = await getProducts(supabase);
+  // Get nearest outlet
+  const nearestOutlet = await findNearestOutlet(supabase);
+  const outletName = nearestOutlet?.name || "Malili";
+  
+  const products = await getProducts(supabase, nearestOutlet?.outlet_id);
   const orderLink = getOrderLink(phone, customer.name, customer.referral_code);
   
   return `Senang berkenalan dengan Anda, ${customer.name}! 🎉
 
-Saya Feisty, asisten pesan Anda di Feisty Malili!
+Saya Feisty, asisten pesan Anda di ${outletName}!
 
 📋 *Keuntungan jadi member Feisty:*
 • Pesan lebih cepat via link personal
@@ -370,15 +440,20 @@ Boleh tahu nama Anda? Supaya kami bisa melayani Anda dengan baik! 😊`;
         // Handle name change
         responseMessage = await handleNameChange(supabase, from, nameChangeMatch[2]);
       } else {
+        // Get nearest outlet info
+        const nearestOutlet = await findNearestOutlet(supabase);
+        const outletName = nearestOutlet?.name || "Malili";
+        const products = await getProducts(supabase, nearestOutlet?.outlet_id);
+        
         // Use AI for marketing
-        const products = await getProducts(supabase);
         responseMessage = await getAIResponse(
           messageText, 
           customer.name, 
           from, 
           customer.referral_code || "BELUM ADA",
           customer.total_referrals || 0,
-          products
+          products,
+          outletName
         );
       }
     }
