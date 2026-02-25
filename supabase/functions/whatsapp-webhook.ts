@@ -25,6 +25,11 @@ const WEB_ORDER_URL = Deno.env.get("WEB_ORDER_URL") || "https://feisty.my.id/web
 const WEBHOOK_KEY = Deno.env.get("WEBHOOK_KEY") || "feisty-webhook-secret-2024";
 const DEFAULT_OUTLET_ID = "00000000-0000-0000-0000-000000000001";
 
+// Helper function to generate order link with phone
+function getOrderLink(phone: string, name: string): string {
+  return `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`;
+}
+
 // Gemini API
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyCg7JsZ-SW_QODiXBHdt3h6eNs_HAfxTX8";
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -75,12 +80,13 @@ async function getProducts(supabase: any): Promise<any[]> {
 // GEMINI AI MARKETING
 // ============================================================
 
-async function getAIResponse(messageText: string, customerName: string, products: any[]): Promise<string> {
+async function getAIResponse(messageText: string, customerName: string, customerPhone: string, products: any[]): Promise<string> {
   if (!GEMINI_API_KEY) {
-    return getFallbackResponse(messageText, customerName, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, products);
   }
 
   const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
+  const orderLink = getOrderLink(customerPhone, customerName);
 
   const systemPrompt = `Anda adalah "Feisty" - asisten marketing yang friendly dan helpful untuk restaurant Feisty.
 
@@ -134,30 +140,31 @@ Pesan: ${messageText}`;
       return content;
     }
     
-    return getFallbackResponse(messageText, customerName, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, products);
   } catch (error) {
     console.error("Gemini error:", error);
-    return getFallbackResponse(messageText, customerName, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, products);
   }
 }
 
-function getFallbackResponse(messageText: string, customerName: string, products: any[]): string {
+function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, products: any[]): string {
   const msg = messageText.toLowerCase();
   const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
+  const orderLink = getOrderLink(customerPhone, customerName);
 
   if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello")) {
-    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\n Mau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
+    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
   }
   
   if (msg.includes("menu")) {
-    return `📋 *Menu Feisty*\n\n${productList}\n\nKlik untuk pesan: ${WEB_ORDER_URL}`;
+    return `📋 *Menu Feisty*\n\n${productList}\n\nKlik untuk pesan: ${orderLink}`;
   }
   
   if (msg.includes("pesan") || msg.includes("order") || msg.includes("beli")) {
-    return `🛒 Klik link berikut untuk pesan:\n\n${WEB_ORDER_URL}`;
+    return `🛒 Klik link berikut untuk pesan:\n\n${orderLink}`;
   }
   
-  return `Halo ${customerName}! 👋\n\nMau pesan apa? Ketik "menu" untuk lihat menu atau langsung klik:\n\n${WEB_ORDER_URL}`;
+  return `Halo ${customerName}! 👋\n\nMau pesan apa? Ketik "menu" untuk lihat menu atau langsung klik:\n\n${orderLink}`;
 }
 
 // ============================================================
@@ -182,8 +189,9 @@ async function handleNameCapture(supabase: any, phone: string, nameInput: string
   }
 
   const products = await getProducts(supabase);
+  const orderLink = getOrderLink(phone, customer.name);
   
-  return `Senang berkenalan dengan Anda, ${customer.name}! 🎉\n\nSaya Feisty, asisten pesan Anda!\n\n📋 *Rekomendasi hari ini:*\n${products.slice(0, 3).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")}`).join("\n")}\n\nMau pesan sekarang? Klik: ${WEB_ORDER_URL}`;
+  return `Senang berkenalan dengan Anda, ${customer.name}! 🎉\n\nSaya Feisty, asisten pesan Anda!\n\n📋 *Rekomendasi hari ini:*\n${products.slice(0, 3).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n")}\n\nMau pesan sekarang? Klik: ${orderLink}`;
 }
 
 // ============================================================
@@ -271,7 +279,7 @@ serve(async (req) => {
     } else {
       // EXISTING CUSTOMER - Use AI for marketing
       const products = await getProducts(supabase);
-      responseMessage = await getAIResponse(messageText, customer.name, products);
+      responseMessage = await getAIResponse(messageText, customer.name, from, products);
     }
 
     // Send response

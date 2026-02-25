@@ -1,7 +1,9 @@
-# Supabase
+# Supabase CLI
 supabase.exe
 supabase.tar.gz
-supabase/
+# But include the functions code
+!supabase/functions/
+supabase/.temp/
 
 # Dependencies
 node_modules/
