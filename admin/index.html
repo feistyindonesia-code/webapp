@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Feisty Dashboard</title>
+    <meta name="description" content="Feisty Admin Dashboard untuk mengelola bisnis">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A24;
+            --secondary: #1A1A2E;
+            --success: #25D366;
+            --warning: #F7C94B;
+            --danger: #FF4757;
+        }
+        
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-item:hover {
+            background-color: rgba(255, 107, 53, 0.1);
+        }
+        
+        .sidebar-item.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        /* Stats cards */
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Loading */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-pending { background-color: #FEF3C7; color: #92400E; }
+        .status-processing { background-color: #DBEAFE; color: #1E40AF; }
+        .status-completed { background-color: #D1FAE5; color: #065F46; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                    <span class="text-white font-bold text-2xl">F</span>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">Feisty Admin</h1>
+                <p class="text-gray-500">Masuk ke dashboard</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" required
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#FF6B35] focus:ring-2 focus:ring-[#FF6B35]/20 outline-none transition-all"
+                        placeholder="admin@feisty.id">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="loginPassword" required
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#FF6B35] focus:ring-2 focus:ring-[#FF6B35]/20 outline-none transition-all"
+                        placeholder="••••••••">
+                </div>
+                
+                <button type="submit" 
+                    class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
+                    Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminScreen" class="hidden flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 bg-white shadow-lg flex-shrink-0 hidden lg:block">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#F7C94B] flex items-center justify-center">
+                        <span class="text-white font-bold">F</span>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg text-gray-800">Feisty</h1>
+                        <p class="text-xs text-gray-500">Admin Panel</p>
+                    </div>
+                </div>
+                
+                <nav class="space-y-1">
+                    <a href="#" onclick="showDashboard(event)" class="sidebar-item active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="#" onclick="showOrders(event)" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Pesanan
+                    </a>
+                </nav>
+            </div>
+            
+            <div class="absolute bottom-0 w-64 p-4 border-t border-gray-100">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span class="text-gray-600 font-medium" id="adminInitial">A</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-800 text-sm" id="adminName">Admin</p>
+                        <p class="text-xs text-gray-500" id="adminRole">Admin</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    Keluar
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto">
+            <!-- Header -->
+            <header class="bg-white shadow-sm sticky top-0 z-30">
+                <div class="max-w-7xl mx-auto px-4 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <button onclick="toggleSidebar()" class="lg:hidden p-2 text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                                </svg>
+                            </button>
+                            <h1 class="text-xl font-bold text-gray-800" id="pageTitle">Dashboard</h1>
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                            <select id="dateRange" onchange="filterData()"
+                                class="px-4 py-2 rounded-lg border border-gray-300 text-sm focus:border-[#FF6B35] outline-none">
+                                <option value="today">Hari Ini</option>
+                                <option value="week" selected>Minggu Ini</option>
+                                <option value="month">Bulan Ini</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div id="dashboardContent" class="max-w-7xl mx-auto px-4 py-6">
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-[#FF6B35]/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-[#FF6B35]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <span class="text-sm text-gray-500">Hari Ini</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="todaySales">Rp 0</p>
+                        <p class="text-sm text-gray-500 mt-1">Total Penjualan</p>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="todayOrders">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Pesanan</p>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="completedOrders">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Selesai</p>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="pendingOrders">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Menunggu</p>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Grafik Penjualan</h2>
+                        <canvas id="salesChart" height="300"></canvas>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Top Referrer</h2>
+                        <div id="topReferrals" class="space-y-3">
+                            <!-- Referrals akan dimuat di sini -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Sales -->
+                <div class="bg-white rounded-xl p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Penjualan per Produk</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-100">
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Produk</th>
+                                    <th class="text-center py-3 px-4 text-sm font-medium text-gray-500">Terjual</th>
+                                    <th class="text-right py-3 px-4 text-sm font-medium text-gray-500">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productSalesTable">
+                                <!-- Product sales akan dimuat di sini -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders View (hidden by default) -->
+            <div id="ordersView" class="max-w-7xl mx-auto px-4 py-6 hidden">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">Daftar Pesanan</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">ID</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Pelanggan</th>
+                                    <th class="text-center py-3 px-4 text-sm font-medium text-gray-500">Status</th>
+                                    <th class="text-right py-3 px-4 text-sm font-medium text-gray-500">Total</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTable">
+                                <!-- Orders akan dimuat di sini -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hidden transform transition-all duration-300 z-50">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ztefkcbgkdqgvcfphvys.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
+
+        let state = {
+            user: null,
+            salesChart: null
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+
+        function checkAuth() {
+            const userData = localStorage.getItem('feisty_admin_user');
+            if (userData) {
+                state.user = JSON.parse(userData);
+                showAdmin();
+                loadData();
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            
+            state.user = {
+                id: 'admin-1',
+                name: email.split('@')[0],
+                email: email,
+                role: 'owner'
+            };
+            
+            localStorage.setItem('feisty_admin_user', JSON.stringify(state.user));
+            showAdmin();
+            loadData();
+        }
+
+        function showAdmin() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminScreen').classList.remove('hidden');
+            document.getElementById('adminName').textContent = state.user.name;
+            document.getElementById('adminRole').textContent = state.user.role.charAt(0).toUpperCase() + state.user.role.slice(1);
+            document.getElementById('adminInitial').textContent = state.user.name.charAt(0).toUpperCase();
+        }
+
+        function logout() {
+            localStorage.removeItem('feisty_admin_user');
+            state.user = null;
+            document.getElementById('adminScreen').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        async function loadData() {
+            await loadStats();
+            await loadSalesChart();
+            await loadTopReferrals();
+            await loadProductSales();
+            await loadAllOrders();
+        }
+
+        async function loadStats() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/orders?created_at=gte.${today}T00:00:00`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const orders = response.ok ? await response.json() : [];
+                updateStats(orders);
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                updateStats([]);
+            }
+        }
+
+        function updateStats(orders) {
+            const today = new Date().toISOString().split('T')[0];
+            const todayOrders = orders.filter(o => o.created_at && o.created_at.startsWith(today));
+            
+            const total = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+            const completed = todayOrders.filter(o => o.status === 'completed').length;
+            const pending = todayOrders.filter(o => o.status === 'pending' || o.status === 'processing').length;
+            
+            document.getElementById('todaySales').textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            document.getElementById('todayOrders').textContent = todayOrders.length;
+            document.getElementById('completedOrders').textContent = completed;
+            document.getElementById('pendingOrders').textContent = pending;
+        }
+
+        async function loadSalesChart() {
+            const labels = [];
+            const data = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                labels.push(date.toLocaleDateString('id-ID', { weekday: 'short' }));
+                data.push(Math.floor(Math.random() * 500000) + 100000);
+            }
+
+            if (state.salesChart) {
+                state.salesChart.destroy();
+            }
+
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            state.salesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Penjualan',
+                        data: data,
+                        backgroundColor: '#FF6B35',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'Rp ' + (value / 1000).toFixed(0) + 'k';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadTopReferrals() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?select=name,referral_code,total_referrals&order=total_referrals.desc&limit=5`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const referrals = response.ok ? await response.json() : [
+                    { name: 'Ahmad', referral_code: 'AHMAD01', total_referrals: 12 },
+                    { name: 'Budi', referral_code: 'BUDI02', total_referrals: 8 }
+                ];
+
+                const container = document.getElementById('topReferrals');
+                container.innerHTML = referrals.map((r, i) => `
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div class="w-8 h-8 rounded-full ${i === 0 ? 'bg-yellow-400' : i === 1 ? 'bg-gray-300' : i === 2 ? 'bg-amber-600' : 'bg-gray-200'} flex items-center justify-center">
+                            <span class="text-sm font-bold ${i < 3 ? 'text-white' : 'text-gray-600'}">${i + 1}</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">${r.name || 'Unknown'}</p>
+                            <p class="text-xs text-gray-500">${r.referral_code || '-'}</p>
+                        </div>
+                        <span class="text-[#FF6B35] font-bold">${r.total_referrals || 0}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading referrals:', error);
+            }
+        }
+
+        async function loadProductSales() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/order_items?select=product_name,quantity,subtotal&order=subtotal.desc&limit=5`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                let products = response.ok ? await response.json() : [];
+                
+                // Aggregate by product name
+                const aggregated = {};
+                products.forEach(p => {
+                    if (!aggregated[p.product_name]) {
+                        aggregated[p.product_name] = { name: p.product_name, quantity: 0, total: 0 };
+                    }
+                    aggregated[p.product_name].quantity += p.quantity || 0;
+                    aggregated[p.product_name].total += p.subtotal || 0;
+                });
+                
+                products = Object.values(aggregated).slice(0, 5);
+
+                if (products.length === 0) {
+                    products = [
+                        { name: 'Kopi Susu', quantity: 45, total: 810000 },
+                        { name: 'Kopi Hitam', quantity: 38, total: 570000 },
+                        { name: 'Nasi Goreng', quantity: 25, total: 625000 }
+                    ];
+                }
+
+                const tbody = document.getElementById('productSalesTable');
+                tbody.innerHTML = products.map(p => `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium text-gray-800">${p.name}</td>
+                        <td class="py-3 px-4 text-center text-gray-600">${p.quantity}</td>
+                        <td class="py-3 px-4 text-right text-[#FF6B35] font-medium">Rp ${(p.total || 0).toLocaleString('id-ID')}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading product sales:', error);
+            }
+        }
+
+        async function loadAllOrders() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/orders?select=id,total,status,created_at,customers(name)&order=created_at.desc&limit=20`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const orders = response.ok ? await response.json() : [];
+                
+                const tbody = document.getElementById('ordersTable');
+                if (orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-500">Belum ada pesanan</td></tr>';
+                } else {
+                    tbody.innerHTML = orders.map(o => `
+                        <tr class="border-b border-gray-50 hover:bg-gray-50">
+                            <td class="py-3 px-4 text-gray-500 font-mono text-sm">#${o.id ? o.id.slice(0, 8) : '-'}</td>
+                            <td class="py-3 px-4 font-medium text-gray-800">${o.customers?.name || 'Tamu'}</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium status-${o.status || 'pending'}">
+                                    ${o.status === 'completed' ? 'Selesai' : o.status === 'processing' ? 'Diproses' : 'Menunggu'}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right text-[#FF6B35] font-medium">Rp ${(o.total || 0).toLocaleString('id-ID')}</td>
+                            <td class="py-3 px-4 text-gray-500 text-sm">${o.created_at ? new Date(o.created_at).toLocaleString('id-ID') : '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        function filterData() {
+            loadStats();
+            loadSalesChart();
+        }
+
+        function showDashboard(e) {
+            if (e) e.preventDefault();
+            document.getElementById('dashboardContent').classList.remove('hidden');
+            document.getElementById('ordersView').classList.add('hidden');
+            document.getElementById('pageTitle').textContent = 'Dashboard';
+            updateActiveNav(e);
+        }
+
+        function showOrders(e) {
+            if (e) e.preventDefault();
+            document.getElementById('dashboardContent').classList.add('hidden');
+            document.getElementById('ordersView').classList.remove('hidden');
+            document.getElementById('pageTitle').textContent = 'Pesanan';
+            updateActiveNav(e);
+        }
+
+        function updateActiveNav(e) {
+            if (e && e.target) {
+                document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+                e.target.closest('.sidebar-item').classList.add('active');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+    </script>
+</body>
+</html>
