@@ -25,9 +25,13 @@ const WEB_ORDER_URL = Deno.env.get("WEB_ORDER_URL") || "https://feisty.my.id/web
 const WEBHOOK_KEY = Deno.env.get("WEBHOOK_KEY") || "feisty-webhook-secret-2024";
 const DEFAULT_OUTLET_ID = "00000000-0000-0000-0000-000000000001";
 
-// Helper function to generate order link with phone
-function getOrderLink(phone: string, name: string): string {
-  return `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`;
+// Helper function to generate order link with phone and referral
+function getOrderLink(phone: string, name: string, referralCode?: string): string {
+  let url = `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`;
+  if (referralCode) {
+    url += `&ref=${encodeURIComponent(referralCode)}`;
+  }
+  return url;
 }
 
 // Gemini API
@@ -80,13 +84,13 @@ async function getProducts(supabase: any): Promise<any[]> {
 // GEMINI AI MARKETING
 // ============================================================
 
-async function getAIResponse(messageText: string, customerName: string, customerPhone: string, products: any[]): Promise<string> {
+async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, products: any[]): Promise<string> {
   if (!GEMINI_API_KEY) {
-    return getFallbackResponse(messageText, customerName, customerPhone, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
   }
 
   const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
-  const orderLink = getOrderLink(customerPhone, customerName);
+  const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
 
   const systemPrompt = `Anda adalah "Feisty" - asisten marketing yang friendly dan helpful untuk restaurant Feisty.
 
@@ -140,24 +144,28 @@ Pesan: ${messageText}`;
       return content;
     }
     
-    return getFallbackResponse(messageText, customerName, customerPhone, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
   } catch (error) {
     console.error("Gemini error:", error);
-    return getFallbackResponse(messageText, customerName, customerPhone, products);
+    return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, products);
   }
 }
 
-function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, products: any[]): string {
+function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, products: any[]): string {
   const msg = messageText.toLowerCase();
   const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
-  const orderLink = getOrderLink(customerPhone, customerName);
+  const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
 
   if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello")) {
-    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
+    return `Halo ${customerName}! 👋\n\nSelamat datang di Feisty!\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!\n\n📢 Share kode referral Anda: *${customerReferralCode}*\nDapat komisi kalau teman pesan lewat link Anda!`;
   }
   
   if (msg.includes("menu")) {
     return `📋 *Menu Feisty*\n\n${productList}\n\nKlik untuk pesan: ${orderLink}`;
+  }
+  
+  if (msg.includes("referral") || msg.includes("komisi") || msg.includes("share")) {
+    return `📢 *Kode Referral Anda*\n\n*Kode:* ${customerReferralCode}\n\nShare kode ini ke teman! Kalau mereka pesan lewat link Anda, Anda dapat komisi!\n\nLink share: ${orderLink}`;
   }
   
   if (msg.includes("pesan") || msg.includes("order") || msg.includes("beli")) {
@@ -279,7 +287,7 @@ serve(async (req) => {
     } else {
       // EXISTING CUSTOMER - Use AI for marketing
       const products = await getProducts(supabase);
-      responseMessage = await getAIResponse(messageText, customer.name, from, products);
+      responseMessage = await getAIResponse(messageText, customer.name, from, customer.referral_code, products);
     }
 
     // Send response

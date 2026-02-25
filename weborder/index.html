@@ -107,6 +107,9 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span id="customerName" class="text-sm text-gray-600 hidden sm:inline">Halo, Tamu</span>
+                    <button id="referralBtn" onclick="showReferralCode()" class="text-xs bg-[#F7C94B] text-gray-800 px-2 py-1 rounded-full font-medium hidden">
+                        Share Referral
+                    </button>
                 </div>
             </div>
         </div>
@@ -277,6 +280,10 @@
             const customerId = urlParams.get('customer');
             const phone = urlParams.get('phone');
             const name = urlParams.get('name');
+            const refCode = urlParams.get('ref');
+
+            // Store ref code in state
+            state.referralCode = refCode;
 
             // Option 1: Using token + customer ID (existing method)
             if (token && customerId) {
@@ -284,7 +291,7 @@
             }
             // Option 2: Using phone number (from WhatsApp link)
             else if (phone) {
-                await loadCustomerByPhone(phone, name);
+                await loadCustomerByPhone(phone, name, refCode);
             }
             // No valid params
             else {
@@ -330,7 +337,7 @@
         }
 
         // Load customer by phone (new method for WhatsApp)
-        async function loadCustomerByPhone(phone, suggestedName) {
+        async function loadCustomerByPhone(phone, suggestedName, refCode) {
             try {
                 const response = await fetch(
                     `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
@@ -351,8 +358,40 @@
                     state.customer = data[0];
                     document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
                     document.getElementById('customerName').classList.remove('hidden');
+                    
+                    // Show referral code if available
+                    if (state.customer.referral_code) {
+                        showToast(`Kode referral Anda: ${state.customer.referral_code}`);
+                        showReferralButton();
+                    }
                 } else {
-                    // Create new customer automatically
+                    // Create new customer automatically with referral
+                    const customerData = {
+                        name: suggestedName || 'Customer WhatsApp',
+                        phone: phone
+                    };
+                    
+                    // If there's a referral code, find the referrer
+                    if (refCode) {
+                        // Try to find the referrer first
+                        const referrerResponse = await fetch(
+                            `${SUPABASE_URL}/rest/v1/customers?referral_code=eq.${refCode}`,
+                            {
+                                headers: {
+                                    'apikey': SUPABASE_ANON_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                                }
+                            }
+                        );
+                        
+                        if (referrerResponse.ok) {
+                            const referrers = await referrerResponse.json();
+                            if (referrers && referrers.length > 0) {
+                                customerData.referred_by = referrers[0].id;
+                            }
+                        }
+                    }
+                    
                     const createResponse = await fetch(
                         `${SUPABASE_URL}/rest/v1/customers`,
                         {
@@ -363,10 +402,7 @@
                                 'Content-Type': 'application/json',
                                 'Prefer': 'return=representation'
                             },
-                            body: JSON.stringify({
-                                name: suggestedName || 'Customer WhatsApp',
-                                phone: phone
-                            })
+                            body: JSON.stringify(customerData)
                         }
                     );
 
@@ -376,6 +412,12 @@
                     state.customer = newCustomer[0];
                     document.getElementById('customerName').textContent = `Halo, ${state.customer.name}`;
                     document.getElementById('customerName').classList.remove('hidden');
+                    
+                    // Show welcome message with referral code
+                    if (state.customer.referral_code) {
+                        showToast(`Selamat! Kode referral Anda: ${state.customer.referral_code} - Share ke teman dapat komisi!`);
+                        showReferralButton();
+                    }
                 }
             } catch (error) {
                 console.error('Error loading customer:', error);
@@ -756,6 +798,31 @@
             setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3000);
+        }
+
+        // Show referral code modal
+        function showReferralCode() {
+            if (!state.customer || !state.customer.referral_code) {
+                showToast('Kode referral tidak tersedia');
+                return;
+            }
+            
+            const referralLink = `${window.location.origin}/weborder?ref=${state.customer.referral_code}`;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(referralLink).then(() => {
+                showToast('Link referral disalin! Share ke teman dapat komisi.');
+            }).catch(() => {
+                showToast(`Kode: ${state.customer.referral_code}`);
+            });
+        }
+
+        // Show referral button when customer loaded
+        function showReferralButton() {
+            const btn = document.getElementById('referralBtn');
+            if (state.customer && state.customer.referral_code) {
+                btn.classList.remove('hidden');
+            }
         }
     </script>
 </body>
