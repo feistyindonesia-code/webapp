@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/weborder/(.*)", "destination": "/weborder/index.html" },
-    { "source": "/admin/(.*)", "destination": "/admin/index.html" },
-    { "source": "/pos/(.*)", "destination": "/pos/index.html" },
-    { "source": "/", "destination": "/index.html" }
-  ]
-}

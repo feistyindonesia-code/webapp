@@ -1,0 +1,5 @@
+# GitHub Pages redirects for multi-page SPA
+/weborder/*    /weborder/index.html   200
+/admin/*       /admin/index.html      200
+/pos/*         /pos/index.html        200
+/*             /index.html            200
