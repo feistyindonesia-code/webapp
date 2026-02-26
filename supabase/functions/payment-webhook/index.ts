@@ -8,7 +8,6 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const IPAYMU_SECRET = Deno.env.get("IPAYMU_SECRET") || "";
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -73,9 +72,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get signature from headers
-    const signature = req.headers.get("X-Signature") || "";
-    
     // Get request body
     const body = await req.text();
     const payload = JSON.parse(body);

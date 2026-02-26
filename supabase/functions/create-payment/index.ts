@@ -12,22 +12,9 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // iPaymu configuration
 const IPAYMU_VA = Deno.env.get("IPAYMU_VA")!;
 const IPAYMU_API_KEY = Deno.env.get("IPAYMU_API_KEY")!;
-const IPAYMU_SECRET = Deno.env.get("IPAYMU_SECRET")!;
 const IPAYMU_URL = Deno.env.get("IPAYMU_URL") || "https://sandbox.ipaymu.com";
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-/**
- * Generate iPaymu signature
- */
-async function generateSignature(method: string, jsonBody: string): Promise<string> {
-  const stringToSign = method + ":" + IPAYMU_VA + ":" + jsonBody + ":" + IPAYMU_SECRET;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(stringToSign);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 /**
  * Service layer for order operations
@@ -76,7 +63,7 @@ const paymentService = {
   async createPayment(orderId: string, amount: number, customerPhone: string) {
     const timestamp = Date.now();
     const notifyUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
-    
+
     const body = {
       method: "vc",
       amount: amount.toString(),
@@ -98,7 +85,6 @@ const paymentService = {
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${IPAYMU_API_KEY}`,
-        "Signature": signature,
         "Timestamp": timestamp.toString()
       },
       body: jsonBody
