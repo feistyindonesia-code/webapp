@@ -205,11 +205,13 @@
                 return;
             }
 
-            // Load customer
-            await loadCustomerByPhone(phone, name, refCode);
+            // Load customer - only proceed if customer exists
+            const customerLoaded = await loadCustomerByPhone(phone, name, refCode);
             
-            // Load products
-            await loadProducts();
+            // Only load products if customer was found
+            if (customerLoaded) {
+                await loadProducts();
+            }
         }
 
         function normalizePhone(phone) {
@@ -307,6 +309,9 @@
                 document.getElementById('customerAvatar').textContent = initial;
                 document.getElementById('customerName').textContent = state.customer.name;
                 document.getElementById('customerPhone').textContent = state.customer.phone;
+
+                // Return true to indicate customer was loaded successfully
+                return true;
 
             } catch (error) {
                 console.error('Error:', error);
