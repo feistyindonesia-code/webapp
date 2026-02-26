@@ -176,42 +176,36 @@
 
     <!-- Payment Modal (iPaymu) -->
     <div id="paymentModal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center px-4">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center modal-enter">
-            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-2xl p-4 max-w-md w-full text-center modal-enter max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                 </svg>
             </div>
-            <h2 class="text-xl font-semibold text-gray-800 mb-2">Pembayaran via iPaymu</h2>
-            <p class="text-gray-600 mb-4">Silakan lakukan pembayaran dengan detail berikut:</p>
+            <h2 class="text-lg font-semibold text-gray-800 mb-1">Pilih Metode Pembayaran</h2>
+            <p class="text-gray-600 mb-3 text-sm">Silakan pilih metode pembayaran yang diinginkan</p>
             
-            <div class="bg-gray-50 rounded-xl p-4 mb-4 text-left">
+            <div class="bg-gray-50 rounded-xl p-3 mb-3 text-left">
                 <div class="flex justify-between mb-2">
-                    <span class="text-gray-600">Order ID:</span>
-                    <span class="font-semibold" id="paymentOrderId">-</span>
+                    <span class="text-gray-600 text-sm">Order ID:</span>
+                    <span class="font-semibold text-sm" id="paymentOrderId">-</span>
                 </div>
-                <div class="flex justify-between mb-2">
-                    <span class="text-gray-600">Total:</span>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 text-sm">Total:</span>
                     <span class="font-bold text-[#FF6B35]" id="paymentAmount">Rp 0</span>
                 </div>
-                <div class="border-t pt-2 mt-2">
-                    <p class="text-sm text-gray-600 mb-1">Virtual Account:</p>
-                    <p class="font-mono font-bold text-lg" id="paymentVANumber">-</p>
+            </div>
+            
+            <!-- Payment Channels -->
+            <div id="paymentChannels" class="flex-1 overflow-y-auto mb-3">
+                <div class="flex items-center justify-center py-8">
+                    <div class="w-6 h-6 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="ml-2 text-gray-500 text-sm">Memuat metode pembayaran...</span>
                 </div>
             </div>
             
-            <div class="text-xs text-gray-500 mb-4 text-left">
-                <p class="mb-1">Cara pembayaran:</p>
-                <ol class="list-decimal list-inside space-y-1">
-                    <li>Buka aplikasi iPaymu atau ATM</li>
-                    <li>Pilih transfer ke VA number di atas</li>
-                    <li>Masukkan nominal yang sesuai</li>
-                    <li>Konfirmasi pembayaran</li>
-                </ol>
-            </div>
-            
-            <button onclick="confirmPayment()" class="w-full bg-[#FF6B35] text-white py-3 rounded-xl font-semibold mb-2">
-                Sudah Bayar
+            <button onclick="confirmPayment()" id="confirmPayBtn" class="w-full bg-[#FF6B35] text-white py-3 rounded-xl font-semibold mb-2">
+                Bayar Sekarang
             </button>
             <button onclick="closePaymentModal()" class="w-full bg-gray-200 text-gray-700 py-2 rounded-xl font-medium">
                 Batal
@@ -238,7 +232,9 @@
             customer: null,
             products: [],
             cart: [],
-            currentOrderId: null
+            currentOrderId: null,
+            selectedPaymentChannel: '',
+            paymentChannels: []
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -621,13 +617,16 @@
                 const result = await response.json();
                 const order = result.order;
 
-                // Show iPaymu payment modal
-                document.getElementById('paymentOrderId').textContent = order.id.slice(0, 8).toUpperCase();
-                document.getElementById('paymentAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
-                document.getElementById('paymentVANumber').textContent = IPAYMU_VA_NUMBER;
-                
                 // Store order ID for payment processing
                 state.currentOrderId = order.id;
+                state.selectedPaymentChannel = '';
+                
+                // Show payment modal with order details
+                document.getElementById('paymentOrderId').textContent = order.id.slice(0, 8).toUpperCase();
+                document.getElementById('paymentAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
+                
+                // Fetch and display payment channels
+                await loadPaymentChannels();
                 
                 document.getElementById('paymentModal').classList.remove('hidden');
                 
@@ -640,9 +639,122 @@
                 showToast('Gagal membuat pesanan. Silakan coba lagi.');
             }
         }
+        
+        async function loadPaymentChannels() {
+            const channelsContainer = document.getElementById('paymentChannels');
+            channelsContainer.innerHTML = `
+                <div class="flex items-center justify-center py-8">
+                    <div class="w-6 h-6 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="ml-2 text-gray-500 text-sm">Memuat metode pembayaran...</span>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/functions/v1/get-payment-channels`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': SUPABASE_ANON_KEY
+                        }
+                    }
+                );
+                
+                const result = await response.json();
+                
+                if (result.success && result.channels) {
+                    state.paymentChannels = result.channels;
+                    renderPaymentChannels(result.channels);
+                } else {
+                    // Fallback to default VA if API fails
+                    renderPaymentChannels([{
+                        code: 'va',
+                        name: 'Virtual Account',
+                        description: 'Transfer ke VA',
+                        channels: [{ code: 'bca', name: 'BCA', logo: '' }]
+                    }]);
+                }
+            } catch (error) {
+                console.error('Error loading payment channels:', error);
+                // Fallback
+                renderPaymentChannels([{
+                    code: 'va',
+                    name: 'Virtual Account',
+                    description: 'Transfer ke VA',
+                    channels: [{ code: 'bca', name: 'BCA', logo: '' }]
+                }]);
+            }
+        }
+        
+        function renderPaymentChannels(channels) {
+            const container = document.getElementById('paymentChannels');
+            
+            // Filter out channels without valid sub-channels
+            const validChannels = channels.filter(c => c.channels && c.channels.length > 0);
+            
+            let html = '';
+            
+            validChannels.forEach((category, catIndex) => {
+                html += `<div class="mb-3">`;
+                html += `<h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">${category.name}</h4>`;
+                html += `<div class="grid grid-cols-2 gap-2">`;
+                
+                category.channels.forEach((channel, index) => {
+                    const isSelected = catIndex === 0 && index === 0;
+                    html += `
+                        <button 
+                            onclick="selectPaymentChannel('${channel.code}', '${channel.name}', this)"
+                            class="payment-channel-btn p-2 rounded-lg border-2 text-left transition-all ${
+                                isSelected 
+                                    ? 'border-[#FF6B35] bg-[#FF6B35]/10' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }"
+                            data-code="${channel.code}"
+                        >
+                            <div class="font-medium text-sm text-gray-800">${channel.name}</div>
+                            ${channel.fee ? `<div class="text-xs text-gray-500">${formatFee(channel.fee)}</div>` : ''}
+                        </button>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            container.innerHTML = html;
+            
+            // Select first channel by default
+            if (validChannels.length > 0 && validChannels[0].channels.length > 0) {
+                state.selectedPaymentChannel = validChannels[0].channels[0].code;
+            }
+        }
+        
+        function formatFee(fee) {
+            if (!fee) return '';
+            if (fee.ActualFeeType === 'PERCENT') {
+                return `Fee ${fee.ActualFee}%`;
+            } else if (fee.ActualFeeType === 'FLAT') {
+                return `Fee Rp ${parseInt(fee.ActualFee).toLocaleString('id-ID')}`;
+            }
+            return '';
+        }
+        
+        function selectPaymentChannel(code, name, btn) {
+            state.selectedPaymentChannel = code;
+            
+            // Update UI
+            document.querySelectorAll('.payment-channel-btn').forEach(b => {
+                b.classList.remove('border-[#FF6B35]', 'bg-[#FF6B35]/10');
+                b.classList.add('border-gray-200');
+            });
+            btn.classList.remove('border-gray-200');
+            btn.classList.add('border-[#FF6B35]', 'bg-[#FF6B35]/10');
+        }
 
         function closePaymentModal() {
             document.getElementById('paymentModal').classList.add('hidden');
+            state.currentOrderId = null;
+            state.selectedPaymentChannel = '';
             showToast('Pesanan dibatalkan');
         }
 
@@ -652,12 +764,20 @@
                 return;
             }
 
+            if (!state.selectedPaymentChannel) {
+                showToast('Silakan pilih metode pembayaran');
+                return;
+            }
+
             try {
                 // Show loading state
-                const btn = document.querySelector('#paymentModal button');
-                if (btn) btn.textContent = 'Memproses...';
+                const btn = document.getElementById('confirmPayBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Memproses...';
+                }
 
-                // Call create-payment edge function
+                // Call create-payment edge function with selected channel
                 const response = await fetch(
                     `${SUPABASE_URL}/functions/v1/create-payment`,
                     {
@@ -667,7 +787,8 @@
                             'apikey': SUPABASE_ANON_KEY
                         },
                         body: JSON.stringify({
-                            order_id: state.currentOrderId
+                            order_id: state.currentOrderId,
+                            payment_channel: state.selectedPaymentChannel
                         })
                     }
                 );
@@ -679,12 +800,19 @@
                     window.location.href = result.payment_url;
                 } else {
                     showToast(result.message || 'Gagal membuat pembayaran');
-                    if (btn) btn.textContent = 'Sudah Bayar';
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Bayar Sekarang';
+                    }
                 }
             } catch (error) {
                 console.error('Payment error:', error);
                 showToast('Gagal membuat pembayaran');
-                if (btn) btn.textContent = 'Sudah Bayar';
+                const btn = document.getElementById('confirmPayBtn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Bayar Sekarang';
+                }
             }
         }
 

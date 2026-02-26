@@ -39,11 +39,12 @@ const orderService = {
     return data;
   },
 
-  async updatePaymentReference(orderId: string, paymentReference: string) {
+  async updatePaymentReference(orderId: string, paymentReference: string, paymentMethod: string = '') {
     const { error } = await supabase
       .from("orders")
       .update({ 
         payment_reference: paymentReference,
+        payment_method: paymentMethod,
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId);
@@ -65,15 +66,54 @@ const orderService = {
 };
 
 /**
+ * Map payment channel code to iPaymu method
+ */
+function getPaymentMethod(channel: string): string {
+  const methodMap: Record<string, string> = {
+    // VA
+    'va': 'vc',
+    'bca': 'vc',
+    'mandiri': 'vc',
+    'bni': 'vc',
+    'bri': 'vc',
+    'danamon': 'vc',
+    'permata': 'vc',
+    'cimb': 'vc',
+    'bmi': 'vc',
+    'bsi': 'vc',
+    'bpd_bali': 'vc',
+    'bag': 'vc',
+    // Convenience Store
+    'alfamart': 'cstore',
+    'indomaret': 'cstore',
+    // QRIS
+    'qris': 'qris',
+    'qris_mpm': 'qris',
+    // Credit Card
+    'cc': 'cc',
+    // Debit Online
+    'debitonline': 'debitonline',
+    // Pay Later
+    'akulaku': 'paylater',
+    // COD
+    'cod': 'cod'
+  };
+  
+  return methodMap[channel] || 'vc';
+}
+
+/**
  * Service layer for iPaymu payment operations
  */
 const paymentService = {
-  async createPayment(orderId: string, amount: number, customerPhone: string) {
+  async createPayment(orderId: string, amount: number, customerPhone: string, paymentChannel: string = '') {
     const timestamp = Date.now();
     const notifyUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
     
-    const body = {
-      method: "vc",
+    const method = getPaymentMethod(paymentChannel);
+    
+    const body: Record<string, string | number> = {
+      method: method,
       amount: amount.toString(),
       buyer_email: "",
       buyer_phone: customerPhone,
@@ -84,7 +124,12 @@ const paymentService = {
       return_url: "",
       va: IPAYMU_VA
     };
-
+    
+    // Add payment channel if specified and not default VA
+    if (paymentChannel && paymentChannel !== 'va') {
+      (body as any).payment_channel = paymentChannel;
+    }
+    
     const jsonBody = JSON.stringify(body);
 
     const response = await fetch(`${IPAYMU_URL}/api/v2/payment/direct`, {
@@ -135,7 +180,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { order_id } = body;
+    const { order_id, payment_channel } = body;
 
     // Validate input
     if (!order_id) {
@@ -193,16 +238,18 @@ Deno.serve(async (req) => {
       .single();
 
     const customerPhone = customer?.phone || "";
+    const channel = payment_channel || '';
 
     // Create iPaymu payment
     const payment = await paymentService.createPayment(
       order_id,
       order.total_amount || order.total,
-      customerPhone
+      customerPhone,
+      channel
     );
 
-    // Store payment reference
-    await orderService.updatePaymentReference(order_id, payment.transactionId);
+    // Store payment reference and method
+    await orderService.updatePaymentReference(order_id, payment.transactionId, channel);
 
     return new Response(
       JSON.stringify({
