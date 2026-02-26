@@ -2,9 +2,6 @@ name: Deploy Edge Function
 
 on:
   push:
-    paths:
-      - 'supabase/functions/whatsapp-webhook/**'
-      - 'supabase/functions/whatsapp-webhook.ts'
     branches:
       - master
 
