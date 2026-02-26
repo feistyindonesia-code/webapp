@@ -212,10 +212,19 @@
             await loadProducts();
         }
 
+        function normalizePhone(phone) {
+            // Remove all non-digit characters
+            return phone.replace(/\D/g, '');
+        }
+
         async function loadCustomerByPhone(phone, suggestedName, referralCode) {
             try {
+                // Normalize phone number - remove dashes, spaces, etc
+                const normalizedPhone = normalizePhone(phone);
+                
+                // Try exact match first
                 const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
+                    `${SUPABASE_URL}/rest/v1/customers?phone=eq.${normalizedPhone}`,
                     {
                         headers: {
                             'apikey': SUPABASE_ANON_KEY,
@@ -235,10 +244,49 @@
                         await updateReferral(phone, referralCode);
                     }
                 } else {
-                    // Create new customer with referral code if provided
+                    // Try with 0 prefix if not found (e.g., 628xxx -> 08xxx)
+                    const altPhone = normalizedPhone.startsWith('62') ? '0' + normalizedPhone.substring(2) : null;
+                    if (altPhone) {
+                        const altResponse = await fetch(
+                            `${SUPABASE_URL}/rest/v1/customers?phone=eq.${altPhone}`,
+                            {
+                                headers: {
+                                    'apikey': SUPABASE_ANON_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                                }
+                            }
+                        );
+                        const altData = await altResponse.json();
+                        if (altData && altData.length > 0) {
+                            state.customer = altData[0];
+                            // Update phone to normalized format
+                            await fetch(
+                                `${SUPABASE_URL}/rest/v1/customers?id=eq.${state.customer.id}`,
+                                {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'apikey': SUPABASE_ANON_KEY,
+                                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ phone: normalizedPhone })
+                                }
+                            );
+                            state.customer.phone = normalizedPhone;
+                        } else {
+                            // Create new customer
+                            await createNewCustomer();
+                        }
+                    } else {
+                        // Create new customer
+                        await createNewCustomer();
+                    }
+                }
+
+                async function createNewCustomer() {
                     const customerData = {
                         name: suggestedName || 'Customer',
-                        phone: phone
+                        phone: normalizedPhone
                     };
                     if (referralCode) {
                         customerData.referred_by = referralCode;
