@@ -274,42 +274,27 @@
                             );
                             state.customer.phone = normalizedPhone;
                         } else {
-                            // Create new customer
-                            await createNewCustomer();
+                            // Customer not found - show error to register via WhatsApp
+                            document.getElementById('loadingState').classList.add('hidden');
+                            document.getElementById('authError').classList.remove('hidden');
+                            document.getElementById('authError').innerHTML = `
+                                <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg class="w-10 h-10 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <h2 class="text-xl font-semibold text-gray-800 mb-2">Nomor Belum Terdaftar</h2>
+                                <p class="text-gray-600 mb-4">Nomor WhatsApp Anda belum terdaftar di sistem kami.</p>
+                                <p class="text-gray-600 mb-4">Silakan daftar terlebih dahulu melalui WhatsApp:</p>
+                                <a href="https://wa.me/6287787655880?text=Halo%20Feisty%2C%20saya%20ingin%20daftar" class="inline-block bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded-xl font-semibold mb-4">
+                                    📱 Daftar via WhatsApp
+                                </a>
+                                <p class="text-gray-500 text-sm">Setelah terdaftar, Anda bisa memesan melalui link ini.</p>
+                            `;
+                            document.getElementById('productsSection').classList.add('hidden');
+                            return;
                         }
-                    } else {
-                        // Create new customer
-                        await createNewCustomer();
                     }
-                }
-
-                async function createNewCustomer() {
-                    const customerData = {
-                        name: suggestedName || 'Customer',
-                        phone: normalizedPhone
-                    };
-                    if (referralCode) {
-                        customerData.referred_by = referralCode;
-                    }
-                    
-                    const createResponse = await fetch(
-                        `${SUPABASE_URL}/rest/v1/customers`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'apikey': SUPABASE_ANON_KEY,
-                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                                'Content-Type': 'application/json',
-                                'Prefer': 'return=representation'
-                            },
-                            body: JSON.stringify(customerData)
-                        }
-                    );
-
-                    if (!createResponse.ok) throw new Error('Failed to create customer');
-                    
-                    const newCustomer = await createResponse.json();
-                    state.customer = newCustomer[0];
                 }
 
                 // Update referral count if this customer was referred
