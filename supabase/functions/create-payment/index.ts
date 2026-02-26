@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -15,6 +14,15 @@ const IPAYMU_API_KEY = Deno.env.get("IPAYMU_API_KEY")!;
 const IPAYMU_URL = Deno.env.get("IPAYMU_URL") || "https://sandbox.ipaymu.com";
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+/**
+ * Validate order_id format
+ */
+function validateOrderId(orderId: string): boolean {
+  // UUID validation
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(orderId);
+}
 
 /**
  * Service layer for order operations
@@ -63,7 +71,7 @@ const paymentService = {
   async createPayment(orderId: string, amount: number, customerPhone: string) {
     const timestamp = Date.now();
     const notifyUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
-
+    
     const body = {
       method: "vc",
       amount: amount.toString(),
@@ -78,7 +86,6 @@ const paymentService = {
     };
 
     const jsonBody = JSON.stringify(body);
-    const signature = await generateSignature("POST", jsonBody);
 
     const response = await fetch(`${IPAYMU_URL}/api/v2/payment/direct`, {
       method: "POST",
@@ -103,18 +110,45 @@ const paymentService = {
   }
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Validate request method
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ success: false, message: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
-    const { order_id } = await req.json();
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, message: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { order_id } = body;
 
     // Validate input
     if (!order_id) {
       return new Response(
         JSON.stringify({ success: false, message: "order_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate order_id format
+    if (!validateOrderId(order_id)) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Invalid order_id format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -138,7 +172,7 @@ serve(async (req) => {
       );
     }
 
-    // Check if order is expired
+    // Check if order is expired (15 minutes)
     const createdAt = new Date(order.created_at);
     const now = new Date();
     const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);

@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -28,18 +27,6 @@ const orderService = {
     return data;
   },
 
-  async updateStatus(orderId: string, status: string) {
-    const { error } = await supabase
-      .from("orders")
-      .update({ 
-        status: status,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId);
-
-    if (error) throw error;
-  },
-
   async markAsPaid(orderId: string, amount: number) {
     const { error } = await supabase
       .from("orders")
@@ -66,7 +53,7 @@ const orderService = {
   }
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -79,7 +66,6 @@ serve(async (req) => {
     console.log("Payment webhook received:", payload);
 
     // Get the payment reference from the webhook
-    // iPaymu sends different formats, adjust based on actual response
     const paymentReference = payload.TransactionId || payload.transaction_id || payload.Data?.TransactionId;
     const status = payload.Status || payload.status || payload.Data?.Status;
     const amount = parseInt(payload.Amount || payload.amount || payload.Data?.Amount || "0");
@@ -112,15 +98,13 @@ serve(async (req) => {
       );
     }
 
-    // Validate amount matches
+    // Validate amount matches (optional - log only)
     const orderAmount = order.total_amount || order.total || 0;
     if (amount > 0 && amount !== orderAmount) {
       console.log("Amount mismatch:", { expected: orderAmount, received: amount });
-      // Still process but log the mismatch
     }
 
     // Determine status based on iPaymu response
-    // iPaymu status: 1 = success, 0 = pending, -1 = failed
     const isSuccess = status === 1 || status === "1" || status === "success" || status === "Success";
     const isFailed = status === -1 || status === "-1" || status === "failed" || status === "Failed";
 
