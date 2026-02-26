@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -152,7 +152,7 @@
                     <span id="cartTotal" class="text-xl font-bold text-[#FF6B35]">Rp 0</span>
                 </div>
                 <button onclick="checkout()" class="w-full bg-[#FF6B35] hover:bg-[#E85A24] text-white py-3 rounded-xl font-semibold transition-all">
-                    Bayar via WhatsApp
+                    Bayar via iPaymu
                 </button>
             </div>
         </div>
@@ -174,6 +174,51 @@
         </div>
     </div>
 
+    <!-- Payment Modal (iPaymu) -->
+    <div id="paymentModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center modal-enter">
+            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Pembayaran via iPaymu</h2>
+            <p class="text-gray-600 mb-4">Silakan lakukan pembayaran dengan detail berikut:</p>
+            
+            <div class="bg-gray-50 rounded-xl p-4 mb-4 text-left">
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-600">Order ID:</span>
+                    <span class="font-semibold" id="paymentOrderId">-</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-600">Total:</span>
+                    <span class="font-bold text-[#FF6B35]" id="paymentAmount">Rp 0</span>
+                </div>
+                <div class="border-t pt-2 mt-2">
+                    <p class="text-sm text-gray-600 mb-1">Virtual Account:</p>
+                    <p class="font-mono font-bold text-lg" id="paymentVANumber">-</p>
+                </div>
+            </div>
+            
+            <div class="text-xs text-gray-500 mb-4 text-left">
+                <p class="mb-1">Cara pembayaran:</p>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>Buka aplikasi iPaymu atau ATM</li>
+                    <li>Pilih transfer ke VA number di atas</li>
+                    <li>Masukkan nominal yang sesuai</li>
+                    <li>Konfirmasi pembayaran</li>
+                </ol>
+            </div>
+            
+            <button onclick="confirmPayment()" class="w-full bg-[#FF6B35] text-white py-3 rounded-xl font-semibold mb-2">
+                Sudah Bayar
+            </button>
+            <button onclick="closePaymentModal()" class="w-full bg-gray-200 text-gray-700 py-2 rounded-xl font-medium">
+                Batal
+            </button>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full text-sm hidden toast">
         <span id="toastMessage"></span>
@@ -183,6 +228,11 @@
         const SUPABASE_URL = 'https://ztefkcbgkdqgvcfphvys.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZWZrY2Jna2RxZ3ZjZnBodnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NzAzMzMsImV4cCI6MjA4NzQ0NjMzM30.xSoIe07K-C120ecvg1gpCJJgOSdKO-NFlba7pK0otMI';
         const MALILI_OUTLET_ID = '00000000-0000-0000-0000-000000000001';
+        
+        // iPaymu Configuration
+        const IPAYMU_API_KEY = 'SANDBOX879FA826-1124-4F0E-BD90-26BC1D8B3724';
+        const IPAYMU_VA_NUMBER = '0000007787655880';
+        const IPAYMU_URL = 'https://sandbox.ipaymu.com/api/v2/payment';
 
         let state = {
             customer: null,
@@ -289,7 +339,7 @@
                                 <p class="text-gray-600 mb-4">Nomor WhatsApp Anda belum terdaftar di sistem kami.</p>
                                 <p class="text-gray-600 mb-4">Silakan daftar terlebih dahulu melalui WhatsApp:</p>
                                 <a href="https://wa.me/6287787655880?text=Halo%20Feisty%2C%20saya%20ingin%20daftar" class="inline-block bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded-xl font-semibold mb-4">
-                                    📱 Daftar via WhatsApp
+                                    Daftar via WhatsApp
                                 </a>
                                 <p class="text-gray-500 text-sm">Setelah terdaftar, Anda bisa memesan melalui link ini.</p>
                             `;
@@ -560,7 +610,8 @@
                             outlet_id: MALILI_OUTLET_ID,
                             customer_id: state.customer.id,
                             total: total,
-                            status: 'pending'
+                            status: 'pending_payment',
+                            payment_method: 'ipaymu'
                         })
                     }
                 );
@@ -593,40 +644,54 @@
                     }
                 );
 
-                // Send WhatsApp to customer
-                const orderDetails = state.cart.map(item => `• ${item.product_name} x${item.quantity} = Rp ${item.subtotal.toLocaleString('id-ID')}`).join('\n');
-                const message = `*PESANAN DITERIMA* ✅
-
-Halo ${state.customer.name}!
-
-Terima kasih sudah pesan di Feisty!
-
-📋 *Detail Pesanan:*
-${orderDetails}
-
-💰 *Total: Rp ${total.toLocaleString('id-ID')}*
-
-📍 Pesanan akan diantar ke lokasi Anda.
-⏱️ Kami akan menghubungi Anda untuk konfirmasi.
-
-Terima kasih! 🙏`;
-
-                const waUrl = `https://wa.me/${state.customer.phone}?text=${encodeURIComponent(message)}`;
+                // Show iPaymu payment modal
+                document.getElementById('paymentOrderId').textContent = order.id.slice(0, 8).toUpperCase();
+                document.getElementById('paymentAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
+                document.getElementById('paymentVANumber').textContent = IPAYMU_VA_NUMBER;
+                
+                document.getElementById('paymentModal').classList.remove('hidden');
                 
                 state.cart = [];
                 updateCartUI();
                 closeCart();
-                document.getElementById('orderSuccessModal').classList.remove('hidden');
-                
-                // Optionally redirect to WhatsApp
-                setTimeout(() => {
-                    window.open(waUrl, '_blank');
-                }, 1500);
 
             } catch (error) {
                 console.error('Checkout error:', error);
                 showToast('Gagal membuat pesanan. Silakan coba lagi.');
             }
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            showToast('Pesanan dibatalkan');
+        }
+
+        function confirmPayment() {
+            // Show success and send WhatsApp
+            const totalEl = document.getElementById('paymentAmount').textContent;
+            
+            const message = `*PEMBAYARAN DICEK* 
+
+Halo ${state.customer.name}!
+
+Pembayaran Anda via iPaymu telah kami terima.
+
+Total: ${totalEl}
+
+Status: LUNAS
+
+Pesanan akan diantar ke lokasi Anda.
+
+Terima kasih!`;
+
+            const waUrl = `https://wa.me/${state.customer.phone}?text=${encodeURIComponent(message)}`;
+            
+            closePaymentModal();
+            document.getElementById('orderSuccessModal').classList.remove('hidden');
+            
+            setTimeout(() => {
+                window.open(waUrl, '_blank');
+            }, 1500);
         }
 
         function closeOrderSuccess() {
