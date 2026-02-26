@@ -1,3 +1,4 @@
+# Deploy WhatsApp Edge Function to Supabase
 name: Deploy Edge Function
 
 on:
