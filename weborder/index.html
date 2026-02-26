@@ -595,53 +595,29 @@
             const total = state.cart.reduce((sum, item) => sum + item.subtotal, 0);
 
             try {
-                // Create order
-                const orderResponse = await fetch(
-                    `${SUPABASE_URL}/rest/v1/orders`,
+                // Call edge function to create order
+                const response = await fetch(
+                    `${SUPABASE_URL}/functions/v1/create-order`,
                     {
                         method: 'POST',
                         headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             outlet_id: MALILI_OUTLET_ID,
                             customer_id: state.customer.id,
-                            total: total,
-                            status: 'pending'
+                            customer_phone: state.customer.phone,
+                            customer_name: state.customer.name,
+                            items: state.cart,
+                            total: total
                         })
                     }
                 );
 
-                if (!orderResponse.ok) throw new Error('Failed to create order');
+                if (!response.ok) throw new Error('Failed to create order');
                 
-                const orders = await orderResponse.json();
-                const order = orders[0];
-
-                // Create order items
-                const orderItems = state.cart.map(item => ({
-                    order_id: order.id,
-                    product_id: item.product_id,
-                    product_name: item.product_name,
-                    quantity: item.quantity,
-                    unit_price: item.unit_price,
-                    subtotal: item.subtotal
-                }));
-
-                await fetch(
-                    `${SUPABASE_URL}/rest/v1/order_items`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(orderItems)
-                    }
-                );
+                const result = await response.json();
+                const order = result.order;
 
                 // Show iPaymu payment modal
                 document.getElementById('paymentOrderId').textContent = order.id.slice(0, 8).toUpperCase();
