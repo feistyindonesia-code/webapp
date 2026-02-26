@@ -88,9 +88,9 @@ async function findNearestOutlet(supabase: any, lat?: number, lng?: number): Pro
     return nearest;
 }
 
-// Helper function to generate order link with phone and referral
-function getOrderLink(phone: string, name: string, referralCode?: string): string {
-  let url = `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`;
+// Helper function to generate order link with phone only (name looked up in weborder)
+function getOrderLink(phone: string, referralCode?: string): string {
+  let url = `${WEB_ORDER_URL}?phone=${encodeURIComponent(phone)}`;
   if (referralCode) {
     url += `&ref=${encodeURIComponent(referralCode)}`;
   }
@@ -168,46 +168,57 @@ async function getProducts(supabase: any, outletId?: string): Promise<any[]> {
 // GEMINI AI MARKETING
 // ============================================================
 
-async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[], outletName?: string): Promise<string> {
+async function searchProduct(supabase: any, query: string): Promise<any[]> {
+    const { data } = await supabase
+        .from("products")
+        .select("name, price, stock, active")
+        .eq("active", true)
+        .ilike("name", "%" + query + "%")
+        .limit(10);
+    return data || [];
+}
+
+async function getAIResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[], outletName?: string, supabase?: any): Promise<string> {
+    // First check for specific patterns that need database lookup
+    const msg = messageText.toLowerCase();
+    
+    // Check if asking about specific product availability
+    const productKeywords = ["ada", "tersedia", "stock", "jual", "beli", "menu", "catalog"];
+    const isProductQuery = productKeywords.some(keyword => msg.includes(keyword));
+    
+    let productSearchResults = "";
+    if (isProductQuery && supabase) {
+        // Extract product name from message
+        const productName = messageText
+            .replace(/ada|tersedia|stock|jual|beli|menu|catalog|apa|saya| mau| cari| cari/i, "")
+            .trim();
+        
+        if (productName.length > 2) {
+            const searchResults = await searchProduct(supabase, productName);
+            if (searchResults.length > 0) {
+                productSearchResults = searchResults.map(p => 
+                    `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (${p.stock || "tersedia"})`
+                ).join("\n");
+            }
+        }
+    }
+
     if (!GEMINI_API_KEY) {
         return getFallbackResponse(messageText, customerName, customerPhone, customerReferralCode, totalReferrals, products, outletName);
     }
 
-    const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
-    const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
+    const productList = products.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (${p.stock || "tersedia"})`).join("\n");
+    const orderLink = getOrderLink(customerPhone, customerReferralCode);
     const outletDisplay = outletName || "Feisty Malili";
 
-    const systemPrompt = `Anda adalah "Feisty" - asisten marketing yang friendly dan helpful untuk restaurant Feisty.
+    const menuFallback = "- Es Teh Mangga\n- Americano\n- Chicken Salted Egg";
+    const systemPrompt = "Anda adalah Feisty - asisten marketing yang SUPER FRIENDLY dan NATURAL untuk restaurant Feisty di Malili, Sulawesi Selatan. TUJUAN UTAMA: Membuat customer PESAN melalui link web ordering (bukan manual di WhatsApp!). LOKASI: " + outletDisplay + ". MENU FAVORIT: " + (productList || menuFallback) + ". CARA KERJA: - Tanya menu -> Tampilkan beberapa menu + selalu sertakan link order - Ingin pesan -> Langsung arahkan ke link web (jangan tanya detail pesanan di WhatsApp) - Tanya produk tertentu -> Cek ketersediaan + arahkan pesan via web - Ngobrol biasa -> Tetap friendly tapi selingi ajakan pesan - SEMUA PESANAN VIA WEB ORDER - Lebih cepat & tidak ribet! KEBUTUHAN WAJIB: 1. Gunakan nama customer dengan hangat 2. Respons pendek-pendek (maksimal 2-3 kalimat) 3. SELALU sertakan link order: " + orderLink + " 4. Pakai emoji yang sesuai 5. Bahasa Indonesia yang natural dan friendly. JANGAN: - Tanya detail pesanan di WhatsApp (Route ke web order) - Respons terlalu panjang - Terlalu formal. TEKNIK CLOSING: - Mau pesan sekarang? Klik link ini ya... - Lebih hemat waktu, langsung pesan di web aja... - Yuk, langsung klik link di bawah... CONTOH RESPONS: - Customer: assalamualaikum -> Feisty: Waalaikumussalam warahmatullahi wabarakatuh! Hai [nama]! Ada yang bisa Feisty bantu? Mau lihat menu atau langsung pesan? - Customer: halo -> Feisty: Halo [nama]! Welcome ke Feisty! Mau coba menu apa hari ini? - Customer: ada ayam goreng tidak? -> Feisty: Ada dong! Kami punya Chicken Salted Egg, Chicken Crispy, dan banyak lagi! Mau yang mana? Langsung klik sini buat pesan: " + orderLink + " - Customer: saya mau pesan -> Feisty: Siap! Paling mudah lewat web order aja, lebih cepat! Klik: " + orderLink + " - Customer: referral apa? -> Feisty: Nah itu dia! Share kode kamu ke teman, kalau teman pesan lewat link kamu, kamu dapat komisi! Kode kamu: " + customerReferralCode + ". Mau langsung coba?";
 
-TUJUAN UTAMA: Membuat customer下单 (pesan makanan) melalui link web ordering.
-
-INFO_restaurant:
-- Nama restaurant: Feisty
-- Lokasi: ${outletDisplay}
-- Menu: ${productList || "Menu lengkap tersedia"}
-
-ATURAN:
-1. Selalu ramah dan gunakan nama customer
-2. Jika customer bertanya menu, tampilkan beberapa menu populer
-3. Jika customer ingin memesan, arahkan ke link: ${WEB_ORDER_URL}
-4. Gunakan emoji yang sesuai
-5. Respons dalam Bahasa Indonesia yang natural
-6. Jangan terlalu panjang, cukup informatif
-7. Selalu ingatkan link order jika ada kesempatan
-8. Jika customer tanya tentang referral atau komisi, jelaskan dengan jelas
-
-CONTOH:
-- Customer: "halo"
-  Feisty: "Halo [nama]! 👋 Selamat datang di Feisty ${outletDisplay}! Ada yang bisa saya bantu? Mau lihat menu atau langsung pesan?"
-
-- Customer: "referral apa?"
-  Feisty: "Program referral Feisty! Share kode Anda ke teman dan dapat komisi! Kode Anda: [kode]. Setiap teman yang pesan lewat link Anda, Anda dapat [nominal] komisi! 🎁"
-
-- Customer: "cara dapat komisi?"
-  Feisty: "Gampang! 1) Share kode referral Anda ke teman 2) Teman pesan lewat link Anda 3) Anda dapat komisi saat pesanan selesai! Kode Anda: [kode]";
-
-  const userPrompt = `Customer: ${customerName}
-Pesan: ${messageText}`;
+    let userPrompt = "Customer: " + customerName + " - Pesan: " + messageText;
+    
+    if (productSearchResults) {
+        userPrompt += "\n\nHasil pencarian produk:\n" + productSearchResults;
+    }
 
   try {
     const response = await fetch(
@@ -239,9 +250,19 @@ Pesan: ${messageText}`;
 
 function getFallbackResponse(messageText: string, customerName: string, customerPhone: string, customerReferralCode: string, totalReferrals: number, products: any[], outletName?: string): string {
   const msg = messageText.toLowerCase();
-  const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (stok: ${p.stock || "tersedia"})`).join("\n");
-  const orderLink = getOrderLink(customerPhone, customerName, customerReferralCode);
+  const productList = products.slice(0, 5).map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")} (${p.stock || "tersedia"})`).join("\n");
+  const orderLink = getOrderLink(customerPhone, customerReferralCode);
   const outletDisplay = outletName || "Feisty Malili";
+
+  // Handle Islamic greeting
+  if (msg.includes("assalamualaikum") || msg.includes("salam") || msg.includes("ws") || msg.includes("wa") && msg.length < 15) {
+    const responses = [
+      `Waalaikumussalam warahmatullahi wabarakatuh! 😊 Hai ${customerName}! Welcome ke Feisty! Mau pesan apa hari ini?`,
+      `Waalaikumussalam! 🌟 Hai ${customerName}! Senang bisa ngobrol denganmu! Mau lihat menu atau langsung pesan?`,
+      `Assalamualaikum wr wb! ✨ Hai ${customerName}! Ada yang bisa Feisty bantu?`
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
+  }
 
   // Handle name change
   if (msg.includes("ganti nama") || msg.includes("ubah nama") || msg.includes("rubah nama")) {
@@ -249,27 +270,62 @@ function getFallbackResponse(messageText: string, customerName: string, customer
     return `Untuk mengganti nama, tuliskan nama baru Anda dengan format:\n\nganti nama [nama baru]\n\nContoh: ganti nama Budi`;
   }
   
-  if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello")) {
-    return `Halo ${customerName}! 👋\n\nSelamat datang di ${outletDisplay}!\n\n📢 *Kode Referral Anda:* ${customerReferralCode}\n🎁 Total komisi: ${totalReferrals} teman\n\nMau pesan apa hari ini? Ketik "menu" untuk lihat menu!`;
+  // Handle product availability queries
+  const productKeywords = ["ada", "tersedia", "stock", "jual", "beli"];
+  if (productKeywords.some(kw => msg.includes(kw))) {
+    // Try to find matching products
+    const searchQuery = messageText.toLowerCase().replace(/ada|tersedia|stock|jual|beli|tidak|ga|gak|gak ada/i, "").trim();
+    if (searchQuery.length > 2) {
+      const matchedProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery));
+      if (matchedProducts.length > 0) {
+        const foundList = matchedProducts.map(p => `- ${p.name}: Rp ${p.price.toLocaleString("id-ID")}`).join("\n");
+        return `Alhamdulillah ada! 😊\n\n${foundList}\n\nMau pesan yang mana? Langsung klik: ${orderLink}`;
+      }
+    }
+    return `Maaf, produk yang dimaksud tidak ada di menu kami. Tapi kami punya banyak menu menarik lainnya! 😊\n\n${productList}\n\nLihat lengkap: ${orderLink}`;
   }
   
-  if (msg.includes("menu")) {
-    return `📋 *Menu Feisty*\n\n${productList}\n\nKlik untuk pesan: ${orderLink}`;
+  if (msg.includes("halo") || msg.includes("hi") || msg.includes("hello") || msg.includes("hay") || msg.includes("hy")) {
+    const responses = [
+      `Halo ${customerName}! 👋 Selamat datang di Feisty! Mau pesan apa hari ini?`,
+      `Hai ${customerName}! 🌟 Welcome! Ada yang bisa Feisty bantu?`,
+      `Halo ${customerName}! 😊 Welcome ke Feisty Malili! Mau coba menu apa?`
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
   }
   
-  if (msg.includes("referral") || msg.includes("komisi") || msg.includes("share") || msg.includes("uang")) {
-    return `📢 *Program Referral Feisty* 🎁\n\n*Kode Anda:* ${customerReferralCode}\n\n*Cara Dapat Komis:*\n1. Share kode referral Anda ke teman\n2. Teman pesan lewat link Anda: ${orderLink}\n3. Dapat komisi saat pesanan selesai!\n\n*Status:* ${totalReferrals} teman sudah pesan lewat referral Anda!\n\nMau pesan sekarang? Klik: ${orderLink}`;
+  if (msg.includes("menu") || msg.includes("catalog") || msg.includes("daftar")) {
+    return `📋 *Menu Feisty*\n\n${productList}\n\n🔗 Pesan langsung: ${orderLink}`;
   }
   
-  if (msg.includes("kode") || msg.includes("apa kode")) {
-    return `📢 *Kode Referral Anda:* ${customerReferralCode}\n\nShare kode ini ke teman! Setiap teman yang pesan lewat link Anda dapat komisi untuk Anda! 🎁\n\nLink share: ${orderLink}`;
+  if (msg.includes("referral") || msg.includes("komisi") || msg.includes("share") || msg.includes("uang") || msg.includes("affiliate")) {
+    return `🎁 *Program Referral Feisty*\n\nKode Anda: ${customerReferralCode}\n\nCara dapat komisi:\n1. Share kode Anda ke teman\n2. Teman pesan lewat link Anda\n3. Dapat komisi saat pesanan selesai!\n\n📊 Status: ${totalReferrals} teman sudah pesan!\n\nMau langsung coba? ${orderLink}`;
   }
   
-  if (msg.includes("pesan") || msg.includes("order") || msg.includes("beli")) {
-    return `🛒 Klik link berikut untuk pesan:\n\n${orderLink}`;
+  if (msg.includes("kode") || msg.includes("apa kode") || msg.includes("cek kode")) {
+    return `📢 Kode Referral Anda: ${customerReferralCode}\n\nShare ke teman, dapat komisi! 🎁\n\nLink share: ${orderLink}`;
   }
   
-  return `Halo ${customerName}! 👋\n\nMau pesan apa? Ketik "menu" untuk lihat menu atau langsung klik:\n\n${orderLink}`;
+  if (msg.includes("pesan") || msg.includes("order") || msg.includes("beli") || msg.includes("mau") || msg.includes("cobain") || msg.includes("try")) {
+    return `🛒 Siap! Lebih mudah lewat web order, langsung klik:\n\n${orderLink}\n\nPasti lebih cepat & tidak ribet! 😄`;
+  }
+  
+  if (msg.includes("thank") || msg.includes("terima kasih") || msg.includes("thanks") || msg.includes("ty")) {
+    const responses = [
+      `Sama-sama ${customerName}! 😊 Jangan lupa sering-sering pesan di Feisty ya!`,
+      `Terima kasih kembali! 🌟 Selamat menikmati Feisty!`,
+      `Sama-sama! 😄 Cepat sembuh ya! Jangan lupa order lagi!`
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
+  }
+  
+  // Default response - friendly with link
+  const defaults = [
+    `Halo ${customerName}! 👋 Mau pesan apa? Langsung klik: ${orderLink}`,
+    `Feisty siap melayani! 😊 ${customerName}, mau coba menu apa hari ini?`,
+    `Hai ${customerName}! 🌟 Ada yang bisa Feisty bantu? Mau pesan atau lihat menu?`
+  ];
+  return defaults[Math.floor(Math.random() * defaults.length)];
 }
 
 // ============================================================
@@ -292,7 +348,7 @@ async function handleNameCapture(supabase: any, phone: string, nameInput: string
   const outletName = nearestOutlet?.name || "Malili";
   
   const products = await getProducts(supabase, nearestOutlet?.outlet_id);
-  const orderLink = getOrderLink(phone, customer.name, customer.referral_code);
+  const orderLink = getOrderLink(phone, customer.referral_code);
   
   return `Senang berkenalan dengan Anda, ${customer.name}! 🎉
 
@@ -328,7 +384,7 @@ async function handleNameChange(supabase: any, phone: string, newName: string): 
     return "Maaf ada kesalahan saat mengubah nama. Boleh coba lagi?";
   }
 
-  const orderLink = getOrderLink(phone, customer.name, customer.referral_code);
+  const orderLink = getOrderLink(phone, customer.referral_code);
   
   return `✅ Nama berhasil diganti menjadi *${customer.name}*!
 

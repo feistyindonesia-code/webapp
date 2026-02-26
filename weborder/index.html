@@ -198,6 +198,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const phone = urlParams.get('phone');
             const name = urlParams.get('name');
+            const refCode = urlParams.get('ref');
 
             if (!phone) {
                 showAuthError();
@@ -205,13 +206,13 @@
             }
 
             // Load customer
-            await loadCustomerByPhone(phone, name);
+            await loadCustomerByPhone(phone, name, refCode);
             
             // Load products
             await loadProducts();
         }
 
-        async function loadCustomerByPhone(phone, suggestedName) {
+        async function loadCustomerByPhone(phone, suggestedName, referralCode) {
             try {
                 const response = await fetch(
                     `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
@@ -229,8 +230,20 @@
                 
                 if (data && data.length > 0) {
                     state.customer = data[0];
+                    // If there's a referral code and customer has no referral, track it
+                    if (referralCode && !state.customer.referred_by) {
+                        await updateReferral(phone, referralCode);
+                    }
                 } else {
-                    // Create new customer
+                    // Create new customer with referral code if provided
+                    const customerData = {
+                        name: suggestedName || 'Customer',
+                        phone: phone
+                    };
+                    if (referralCode) {
+                        customerData.referred_by = referralCode;
+                    }
+                    
                     const createResponse = await fetch(
                         `${SUPABASE_URL}/rest/v1/customers`,
                         {
@@ -241,10 +254,7 @@
                                 'Content-Type': 'application/json',
                                 'Prefer': 'return=representation'
                             },
-                            body: JSON.stringify({
-                                name: suggestedName || 'Customer',
-                                phone: phone
-                            })
+                            body: JSON.stringify(customerData)
                         }
                     );
 
@@ -252,6 +262,11 @@
                     
                     const newCustomer = await createResponse.json();
                     state.customer = newCustomer[0];
+                }
+
+                // Update referral count if this customer was referred
+                if (state.customer && state.customer.referred_by) {
+                    await incrementReferralCount(state.customer.referred_by);
                 }
 
                 // Update UI
@@ -263,6 +278,65 @@
             } catch (error) {
                 console.error('Error:', error);
                 showAuthError();
+            }
+        }
+
+        async function updateReferral(phone, referralCode) {
+            try {
+                await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?phone=eq.${phone}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            referred_by: referralCode
+                        })
+                    }
+                );
+            } catch (error) {
+                console.error('Error updating referral:', error);
+            }
+        }
+
+        async function incrementReferralCount(referralCode) {
+            try {
+                // Find the referrer by their referral code
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/customers?referral_code=eq.${referralCode}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+                
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const referrer = data[0];
+                    const newCount = (referrer.total_referrals || 0) + 1;
+                    
+                    await fetch(
+                        `${SUPABASE_URL}/rest/v1/customers?id=eq.${referrer.id}`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                total_referrals: newCount
+                            })
+                        }
+                    );
+                }
+            } catch (error) {
+                console.error('Error incrementing referral count:', error);
             }
         }
 
