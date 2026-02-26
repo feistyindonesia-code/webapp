@@ -237,7 +237,8 @@
         let state = {
             customer: null,
             products: [],
-            cart: []
+            cart: [],
+            currentOrderId: null
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -624,6 +625,9 @@
                 document.getElementById('paymentAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
                 document.getElementById('paymentVANumber').textContent = IPAYMU_VA_NUMBER;
                 
+                // Store order ID for payment processing
+                state.currentOrderId = order.id;
+                
                 document.getElementById('paymentModal').classList.remove('hidden');
                 
                 state.cart = [];
@@ -641,32 +645,45 @@
             showToast('Pesanan dibatalkan');
         }
 
-        function confirmPayment() {
-            // Show success and send WhatsApp
-            const totalEl = document.getElementById('paymentAmount').textContent;
-            
-            const message = `*PEMBAYARAN DICEK* 
+        async function confirmPayment() {
+            if (!state.currentOrderId) {
+                showToast('Order tidak ditemukan');
+                return;
+            }
 
-Halo ${state.customer.name}!
+            try {
+                // Show loading state
+                const btn = document.querySelector('#paymentModal button');
+                if (btn) btn.textContent = 'Memproses...';
 
-Pembayaran Anda via iPaymu telah kami terima.
+                // Call create-payment edge function
+                const response = await fetch(
+                    `${SUPABASE_URL}/functions/v1/create-payment`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            order_id: state.currentOrderId
+                        })
+                    }
+                );
 
-Total: ${totalEl}
+                const result = await response.json();
 
-Status: LUNAS
-
-Pesanan akan diantar ke lokasi Anda.
-
-Terima kasih!`;
-
-            const waUrl = `https://wa.me/${state.customer.phone}?text=${encodeURIComponent(message)}`;
-            
-            closePaymentModal();
-            document.getElementById('orderSuccessModal').classList.remove('hidden');
-            
-            setTimeout(() => {
-                window.open(waUrl, '_blank');
-            }, 1500);
+                if (result.success && result.payment_url) {
+                    // Redirect to iPaymu payment page
+                    window.location.href = result.payment_url;
+                } else {
+                    showToast(result.message || 'Gagal membuat pembayaran');
+                    if (btn) btn.textContent = 'Sudah Bayar';
+                }
+            } catch (error) {
+                console.error('Payment error:', error);
+                showToast('Gagal membuat pembayaran');
+                if (btn) btn.textContent = 'Sudah Bayar';
+            }
         }
 
         function closeOrderSuccess() {

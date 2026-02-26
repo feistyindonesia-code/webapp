@@ -22,3 +22,5 @@ jobs:
         run: |
           supabase functions deploy whatsapp-webhook --project-ref ztefkcbgkdqgvcfphvys
           supabase functions deploy create-order --project-ref ztefkcbgkdqgvcfphvys
+          supabase functions deploy create-payment --project-ref ztefkcbgkdqgvcfphvys
+          supabase functions deploy payment-webhook --project-ref ztefkcbgkdqgvcfphvys
