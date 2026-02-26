@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { crypto } from "https://deno.land/std@0.168.0/crypto/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,13 +20,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 /**
  * Generate iPaymu signature
  */
-function generateSignature(method: string, jsonBody: string): string {
+async function generateSignature(method: string, jsonBody: string): Promise<string> {
   const stringToSign = method + ":" + IPAYMU_VA + ":" + jsonBody + ":" + IPAYMU_SECRET;
   const encoder = new TextEncoder();
   const data = encoder.encode(stringToSign);
-  return crypto.subtle.digest("SHA-256", data).then(hash => {
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-  });
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { crypto } from "https://deno.land/std@0.168.0/crypto/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,17 +11,6 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const IPAYMU_SECRET = Deno.env.get("IPAYMU_SECRET") || "";
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-/**
- * Verify iPaymu signature
- */
-function verifySignature(signature: string, body: string): boolean {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(body + IPAYMU_SECRET);
-  
-  // Simple comparison - in production use timing-safe comparison
-  return signature === "";
-}
 
 /**
  * Service layer for order operations
