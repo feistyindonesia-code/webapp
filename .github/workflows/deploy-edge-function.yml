@@ -16,8 +16,9 @@ jobs:
         with:
           version: latest
       
-      - name: Deploy Edge Function
+      - name: Deploy Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase functions deploy whatsapp-webhook --project-ref ztefkcbgkdqgvcfphvys
+          supabase functions deploy create-order --project-ref ztefkcbgkdqgvcfphvys
